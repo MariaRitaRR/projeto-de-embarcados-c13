@@ -1,0 +1,10 @@
+# Python
+__pycache__/
+*.pyc
+
+# Ambiente virtual
+.venv/
+
+# VS Code / Code Runner
+.vscode/
+tempCodeRunnerFile.py
