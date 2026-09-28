@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import loadmat
 from scipy.optimize import minimize
-from identificacao import identificar, simular_fopdt, eqm
+from identificação.identificacao import identificar, simular_fopdt, eqm
 import sys
 sys.stdout.reconfigure(encoding="utf-8")
 
