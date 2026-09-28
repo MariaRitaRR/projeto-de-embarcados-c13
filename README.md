@@ -2,7 +2,7 @@
 **C13 - Sistemas Embarcados**
 Projeto Prático 1
 
-**Grupo 2** · Planta: ** Motor CC (controle de velocidade)** 
+**Grupo 2** · Planta: **Motor CC (controle de velocidade)** 
             · Métodos de sintonia: **Ziegler-Nichols Malha Aberta** e **Cohen-Coon**
             · Critério de desempenho: **menor tempo de resposta**
 
