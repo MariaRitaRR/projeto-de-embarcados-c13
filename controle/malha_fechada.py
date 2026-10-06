@@ -25,15 +25,24 @@ def planta_fopdt(k, tau, theta, ordem_pade=ORDEM_PADE):
     return ct.series(ct.tf(k, [tau, 1]), ct.tf(*ct.pade(theta, ordem_pade)))
 
 
-def controlador_pid(kp, ti, td):
-    """PID(s) = Kp·(1 + 1/(Ti·s) + Td·s); ti=None ou inf remove a ação integral."""
+def controlador_pid(kp, ti, td, n_filtro=None):
+    """PID(s) = Kp·(1 + 1/(Ti·s) + Td·s); ti=None ou inf remove a ação integral.
+
+    n_filtro=N troca a derivada ideal Td·s por Td·s/(1 + Td·s/N), limitando o ganho
+    derivativo em alta frequência. None (padrão) mantém a forma ideal.
+    """
     if ti is not None and ti <= 0:
         raise ValueError("Ti deve ser positivo (use None para remover a ação integral).")
     if td < 0:
         raise ValueError("Td não pode ser negativo.")
+    if n_filtro is not None and n_filtro <= 0:
+        raise ValueError("n_filtro deve ser positivo (use None para a derivada ideal).")
+    tf_ = td / n_filtro if n_filtro else 0.0  # constante de tempo do filtro da derivada
     if ti is None or math.isinf(ti):
-        return ct.tf([kp * td, kp], [1])
-    return ct.tf([kp * td, kp, kp / ti], [1, 0])
+        num, den = [kp * (td + tf_), kp], [tf_, 1]
+    else:
+        num, den = [kp * ti * (td + tf_), kp * (ti + tf_), kp], [ti * tf_, ti, 0]
+    return ct.tf(num, np.trim_zeros(den, "f"))
 
 
 def verificar_estabilidade(sistema):
@@ -103,15 +112,16 @@ def _metricas_instavel(polos, aviso):
 
 
 def simular_malha_fechada(kp, ti, td, setpoint=SETPOINT_PADRAO, modelo=None,
-                          ordem_pade=ORDEM_PADE, t_final=None):
+                          ordem_pade=ORDEM_PADE, t_final=None, n_filtro=None):
     """Resposta da malha PID + FOPDT com realimentação unitária a um degrau de SetPoint.
 
     Retorna (t, y, metricas). Se a malha for instável, não simula: t e y vêm vazios,
     as métricas vêm como nan e metricas["aviso"] explica o motivo.
+    n_filtro: ver controlador_pid (None = derivada ideal da eq. 8 do enunciado).
     """
     modelo = modelo or carregar_modelo()
     planta = planta_fopdt(modelo["k"], modelo["tau"], modelo["theta"], ordem_pade)
-    sistema = ct.feedback(ct.series(controlador_pid(kp, ti, td), planta), 1)
+    sistema = ct.feedback(ct.series(controlador_pid(kp, ti, td, n_filtro), planta), 1)
 
     estavel, polos = verificar_estabilidade(sistema)
     if not estavel:
