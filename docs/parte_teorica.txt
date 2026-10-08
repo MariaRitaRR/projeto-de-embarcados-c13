@@ -1,0 +1,21 @@
+Parte Teórica – Motor CC
+
+Funcionamento da planta
+
+A planta utilizada pelo Grupo 2 é um motor de corrente contínua (Motor CC), considerando o controle de velocidade. O funcionamento consiste na aplicação de um sinal de entrada ao motor, fazendo com que sua velocidade varie de acordo com a intensidade do acionamento. A saída do processo é a velocidade do motor, medida em RPM.
+
+Variável controlada
+
+A variável controlada é a velocidade de rotação do motor, expressa em RPM. É essa variável que o sistema de controle deve acompanhar e manter próxima ao valor de referência definido para o processo.
+
+Variável manipulada
+
+A variável manipulada é o sinal aplicado ao acionamento do motor. Ao alterar essa entrada, o controlador modifica a velocidade do motor.
+
+Principais perturbações
+
+Entre as possíveis perturbações estão alterações na carga mecânica aplicada ao eixo, variações na alimentação elétrica, atrito e mudanças nas condições de funcionamento do motor. Essas alterações podem modificar a velocidade obtida para um mesmo sinal de acionamento.
+
+Faixas de operação
+
+As faixas de operação devem respeitar os limites elétricos e mecânicos do motor, do circuito de acionamento e do sensor utilizado na medição da velocidade.
