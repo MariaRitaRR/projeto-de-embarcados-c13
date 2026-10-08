@@ -3,11 +3,13 @@ import math
 from pathlib import Path
 import numpy as np
 import control as ct
+from scipy.optimize import brentq
 
 RAIZ = Path(__file__).resolve().parents[1]
 CAMINHO_MODELO = RAIZ / "identificação" / "modelo_identificado.json"
 SETPOINT_PADRAO = 1800.0  # RPM, valor final do ensaio
 ORDEM_PADE = 3
+GANHO_PADRAO = 0.2  # K da malha fechada do item 4, ~1/3 do ganho crítico
 N_PONTOS = 3000
 
 
@@ -25,24 +27,25 @@ def planta_fopdt(k, tau, theta, ordem_pade=ORDEM_PADE):
     return ct.series(ct.tf(k, [tau, 1]), ct.tf(*ct.pade(theta, ordem_pade)))
 
 
-def controlador_pid(kp, ti, td, n_filtro=None):
-    """PID(s) = Kp·(1 + 1/(Ti·s) + Td·s); ti=None ou inf remove a ação integral.
-
-    n_filtro=N troca a derivada ideal Td·s por Td·s/(1 + Td·s/N), limitando o ganho
-    derivativo em alta frequência. None (padrão) mantém a forma ideal.
-    """
+def controlador_pid(kp, ti, td):
     if ti is not None and ti <= 0:
         raise ValueError("Ti deve ser positivo (use None para remover a ação integral).")
     if td < 0:
         raise ValueError("Td não pode ser negativo.")
-    if n_filtro is not None and n_filtro <= 0:
-        raise ValueError("n_filtro deve ser positivo (use None para a derivada ideal).")
-    tf_ = td / n_filtro if n_filtro else 0.0  # constante de tempo do filtro da derivada
     if ti is None or math.isinf(ti):
-        num, den = [kp * (td + tf_), kp], [tf_, 1]
-    else:
-        num, den = [kp * ti * (td + tf_), kp * (ti + tf_), kp], [ti * tf_, ti, 0]
-    return ct.tf(num, np.trim_zeros(den, "f"))
+        return ct.tf([kp * td, kp], [1])
+    return ct.tf([kp * td, kp, kp / ti], [1, 0])
+
+
+def ganho_critico(modelo=None):
+    # Calculado com o atraso exato: fase de G(jw) = -180° em atan(tau·w) + theta·w = pi
+    modelo = modelo or carregar_modelo()
+    k, tau, theta = modelo["k"], modelo["tau"], modelo["theta"]
+    if theta == 0:
+        return math.inf
+    w180 = brentq(lambda w: math.atan(tau * w) + theta * w - math.pi,
+                  math.pi / (2 * theta), math.pi / theta)
+    return math.sqrt(1 + (tau * w180) ** 2) / k
 
 
 def verificar_estabilidade(sistema):
@@ -68,7 +71,7 @@ def _cruzamento(t, y, nivel):
 
 
 def calcular_metricas(t, y, setpoint, valor_final):
-    """Tempo de subida (10–90%), acomodação (2%), overshoot (%) e erro em regime."""
+ 
     tr = _cruzamento(t, y, 0.9 * valor_final) - _cruzamento(t, y, 0.1 * valor_final)
 
     fora = np.flatnonzero(np.abs(y - valor_final) > 0.02 * abs(valor_final))
@@ -112,16 +115,10 @@ def _metricas_instavel(polos, aviso):
 
 
 def simular_malha_fechada(kp, ti, td, setpoint=SETPOINT_PADRAO, modelo=None,
-                          ordem_pade=ORDEM_PADE, t_final=None, n_filtro=None):
-    """Resposta da malha PID + FOPDT com realimentação unitária a um degrau de SetPoint.
-
-    Retorna (t, y, metricas). Se a malha for instável, não simula: t e y vêm vazios,
-    as métricas vêm como nan e metricas["aviso"] explica o motivo.
-    n_filtro: ver controlador_pid (None = derivada ideal da eq. 8 do enunciado).
-    """
+                          ordem_pade=ORDEM_PADE, t_final=None):
     modelo = modelo or carregar_modelo()
     planta = planta_fopdt(modelo["k"], modelo["tau"], modelo["theta"], ordem_pade)
-    sistema = ct.feedback(ct.series(controlador_pid(kp, ti, td, n_filtro), planta), 1)
+    sistema = ct.feedback(ct.series(controlador_pid(kp, ti, td), planta), 1)
 
     estavel, polos = verificar_estabilidade(sistema)
     if not estavel:
@@ -135,19 +132,15 @@ def simular_malha_fechada(kp, ti, td, setpoint=SETPOINT_PADRAO, modelo=None,
     return t, y, {"estavel": True, "polos": polos, **metricas}
 
 
-def simular_sem_controlador(setpoint=SETPOINT_PADRAO, modelo=None,
+def simular_sem_controlador(setpoint=SETPOINT_PADRAO, ganho=GANHO_PADRAO, modelo=None,
                             ordem_pade=ORDEM_PADE, t_final=None):
-    """Malha aberta e malha fechada sem controlador, no mesmo vetor de tempo.
-
-    Malha aberta: G(s) com degrau de entrada Δu = SP/k, que leva a saída ao SetPoint
-    (mesma situação do ensaio). Malha fechada: G/(1+G) com degrau de SetPoint.
-    Retorna {"aberta": (t, y, metricas), "fechada": (t, y, metricas)}; uma malha
-    instável vem com t e y vazios e o aviso, sem impedir a simulação da outra.
-    """
+    # Malha aberta: G(s) com degrau Δu = SP/k. Malha fechada: K·G/(1 + K·G) com degrau SP.
+    if ganho <= 0:
+        raise ValueError("O ganho K deve ser positivo.")
     modelo = modelo or carregar_modelo()
     planta = planta_fopdt(modelo["k"], modelo["tau"], modelo["theta"], ordem_pade)
     malhas = {"aberta": (planta, setpoint / modelo["k"]),
-              "fechada": (ct.feedback(planta, 1), setpoint)}
+              "fechada": (ct.feedback(ganho * planta, 1), setpoint)}
 
     estabilidade = {nome: verificar_estabilidade(sis) for nome, (sis, _) in malhas.items()}
     polos_estaveis = [p for estavel, p in estabilidade.values() if estavel]
@@ -158,7 +151,8 @@ def simular_sem_controlador(setpoint=SETPOINT_PADRAO, modelo=None,
         estavel, polos = estabilidade[nome]
         if not estavel:
             instaveis = ", ".join(f"{p:.3g}" for p in polos[np.real(polos) >= 0])
-            aviso = f"Malha {nome} sem controlador instável: polos com parte real >= 0: {instaveis}."
+            aviso = (f"Malha {nome} instável com K={ganho} (ganho crítico = "
+                     f"{ganho_critico(modelo):.3f}): polos com parte real >= 0: {instaveis}.")
             resultado[nome] = (np.array([]), np.array([]), _metricas_instavel(polos, aviso))
             continue
         y, metricas = _simular(sistema, amplitude, setpoint, t)
@@ -186,13 +180,15 @@ if __name__ == "__main__":
     modelo = carregar_modelo()
     print(f"Modelo: k={modelo['k']:.4f}  tau={modelo['tau']:.4f}  theta={modelo['theta']:.4f}")
 
+    # Valores só para testar o módulo; os definitivos vêm da sintonia ZN e Cohen-Coon (item 5)
     kp, ti, td = 0.2, 20.0, 1.0
     t, y, m = simular_malha_fechada(kp, ti, td, modelo=modelo)
     imprimir(f"PID de teste (Kp={kp}, Ti={ti}, Td={td})", m)
 
-    sem = simular_sem_controlador(modelo=modelo)
+    print(f"\nGanho crítico: Kcr = {ganho_critico(modelo):.4f}")
+    sem = simular_sem_controlador(ganho=GANHO_PADRAO, modelo=modelo)
     imprimir("Malha aberta (Δu = SP/k)", sem["aberta"][2])
-    imprimir("Malha fechada sem controlador", sem["fechada"][2])
+    imprimir(f"Malha fechada com ganho K = {GANHO_PADRAO}", sem["fechada"][2])
 
     _, _, m_inst = simular_malha_fechada(2.0, 5.0, 1.0, modelo=modelo)
     imprimir("Caso instável (Kp=2, Ti=5, Td=1)", m_inst)
@@ -201,7 +197,7 @@ if __name__ == "__main__":
     plt.figure(figsize=(8, 5))
     plt.plot(t, y, "b", lw=1.4, label=f"PID (Kp={kp}, Ti={ti}, Td={td})")
     for nome, estilo, rotulo in (("aberta", "k--", "Malha aberta"),
-                                 ("fechada", "g-.", "Malha fechada sem controlador")):
+                                 ("fechada", "g-.", f"Malha fechada (K = {GANHO_PADRAO})")):
         t_s, y_s, m_s = sem[nome]
         if m_s["estavel"]:
             plt.plot(t_s, y_s, estilo, lw=1.2, label=rotulo)
