@@ -1,4 +1,6 @@
-﻿from dataclasses import dataclass
+﻿import json
+from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -22,9 +24,9 @@ def cohen_coon(k: float, tau: float, theta: float) -> ParametrosPID:
 
 
 if __name__ == "__main__":
-    k = 22.471578476721454
-    tau = 19.85614984454135
-    theta = 2.4673804124325507
+    with open(Path(__file__).with_name("modelo_identificado.json"), encoding="utf-8") as f:
+        modelo = json.load(f)["ajustado"]
+    k, tau, theta = modelo["k"], modelo["tau"], modelo["theta"]
 
     parametros = cohen_coon(k, tau, theta)
 

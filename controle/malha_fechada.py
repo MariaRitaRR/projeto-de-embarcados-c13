@@ -13,8 +13,8 @@ GANHO_PADRAO = 0.2  # K da malha fechada do item 4, ~1/3 do ganho crítico
 N_PONTOS = 3000
 
 
-def carregar_modelo(caminho=CAMINHO_MODELO, ajustado=False):
-    """Lê k, tau e theta do JSON; ajustado=True usa o bloco do ajuste fino."""
+def carregar_modelo(caminho=CAMINHO_MODELO, ajustado=True):
+    """Lê k, tau e theta do JSON; usa o modelo do ajuste fino, ou o de Smith com ajustado=False."""
     with open(caminho, encoding="utf-8") as f:
         dados = json.load(f)
     if ajustado:

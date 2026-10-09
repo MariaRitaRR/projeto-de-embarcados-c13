@@ -68,11 +68,11 @@ from controle.malha_fechada import simular_malha_fechada, simular_sem_controlado
 |---|---|---|
 | `simular_malha_fechada(kp, ti, td, setpoint=1800)` | Malha fechada com PID e degrau de SetPoint | `(t, y, metricas)` |
 | `simular_sem_controlador(setpoint=1800, ganho=0.2)` | Malha aberta (degrau Δu = SP/k) e malha fechada só com ganho K, no mesmo vetor de tempo | `{"aberta": (t, y, metricas), "fechada": (t, y, metricas)}` |
-| `ganho_critico()` | Ganho crítico Kcr da planta, calculado com o atraso exato | `float` (≈ 0,59) |
-| `carregar_modelo(ajustado=False)` | Lê k, τ e θ do JSON; `ajustado=True` usa o modelo do ajuste fino | `{"k", "tau", "theta"}` |
+| `ganho_critico()` | Ganho crítico Kcr da planta, calculado com o atraso exato | `float` (≈ 0,58) |
+| `carregar_modelo(ajustado=True)` | Lê k, τ e θ do JSON; por padrão usa o modelo do ajuste fino, e `ajustado=False` usa o de Smith | `{"k", "tau", "theta"}` |
 
 Parâmetros opcionais que todas as funções de simulação aceitam:
-- **`modelo=`**: dicionário de `carregar_modelo()`. Se não for passado, usa o modelo de Smith.
+- **`modelo=`**: dicionário de `carregar_modelo()`. Se não for passado, usa o modelo do ajuste fino, que tem o menor EQM e é o adotado pelo grupo em todas as partes.
 - **`ordem_pade=3`**: ordem da aproximação de Padé.
 - **`t_final=`**: duração da simulação. Se não for passado, é escolhida automaticamente.
 
@@ -108,7 +108,7 @@ for nome in ("aberta", "fechada"):
         print(m["aviso"])
 ```
 
-A malha fechada leva um ganho **K** no caminho direto. Com K = 1, ela é instável, porque o ganho crítico da planta é ≈ 0,59. Com K = 0,2, ela é bem mais rápida que a malha aberta (tempo de subida de 3,5 s contra 43,6 s e acomodação de 13 s contra 80 s), mas para em ≈ 1472 RPM: sobra um erro em regime de ≈ 18 %, que só a ação integral do PID elimina.
+A malha fechada leva um ganho **K** no caminho direto. Com K = 1, ela é instável, porque o ganho crítico da planta é ≈ 0,58. Com K = 0,2, ela é bem mais rápida que a malha aberta (tempo de subida de 3,5 s contra 43,9 s e acomodação de 13,5 s contra 80,7 s), mas para em ≈ 1473 RPM: sobra um erro em regime de ≈ 18 %, que só a ação integral do PID elimina.
 
 ### Exemplo: item 5 (PID sintonizado)
 
