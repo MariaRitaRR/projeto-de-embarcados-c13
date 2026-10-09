@@ -4,22 +4,18 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 
+RAIZ = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(RAIZ))  # permite rodar o arquivo direto, além de python -m
+
 from identificação.sintonia_cohen_coon import cohen_coon
+from identificação.sintonia_ziegler_nichols import ziegler_nichols
 from controle.malha_fechada import (
     carregar_modelo,
     simular_malha_fechada,
     SETPOINT_PADRAO,
 )
 
-RAIZ = Path(__file__).resolve().parents[1]
 PASTA_FIGURAS = RAIZ / "figuras"
-
-
-def ziegler_nichols(k, tau, theta):
-    kp = 1.2 * tau / (k * theta)
-    ti = 2 * theta
-    td = 0.5 * theta
-    return kp, ti, td
 
 
 def imprimir_metricas(nome, metricas):
@@ -47,11 +43,11 @@ def main():
     theta = modelo["theta"]
 
     cc = cohen_coon(k, tau, theta)
-    kp_zn, ti_zn, td_zn = ziegler_nichols(k, tau, theta)
+    zn = ziegler_nichols(k, tau, theta)
 
     controladores = {
         "Cohen-Coon": (cc.kp, cc.ti, cc.td),
-        "Ziegler-Nichols": (kp_zn, ti_zn, td_zn),
+        "Ziegler-Nichols": (zn.kp, zn.ti, zn.td),
     }
 
     resultados = {}

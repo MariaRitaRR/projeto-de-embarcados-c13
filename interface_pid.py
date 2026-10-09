@@ -1,7 +1,5 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import numpy as np
-import control as ct
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
@@ -10,32 +8,21 @@ from controle.malha_fechada import (
     simular_malha_fechada,
     ganho_critico,
 )
+from identificação.sintonia_cohen_coon import cohen_coon
+from identificação.sintonia_ziegler_nichols import ziegler_nichols
 
 modelo = carregar_modelo(ajustado=True)
 
 def parametros_zn():
-    k = modelo["k"]
-    tau = modelo["tau"]
-    theta = modelo["theta"]
-    kp = 1.2 * tau / (k * theta)
-    ti = 2 * theta
-    td = 0.5 * theta
-    return kp, ti, td
+    return ziegler_nichols(modelo["k"], modelo["tau"], modelo["theta"])
 
 def parametros_cc():
-    k = modelo["k"]
-    tau = modelo["tau"]
-    theta = modelo["theta"]
-    r = theta / tau
-    kp = (tau / (k * theta)) * ((16 * tau + 3 * theta) / (12 * tau))
-    ti = theta * ((32 + 6 * r) / (13 + 8 * r))
-    td = (4 * theta) / (11 + 2 * r)
-    return kp, ti, td
+    return cohen_coon(modelo["k"], modelo["tau"], modelo["theta"])
 
-def preencher(valores):
-    kp_var.set(f"{valores[0]:.6f}")
-    ti_var.set(f"{valores[1]:.6f}")
-    td_var.set(f"{valores[2]:.6f}")
+def preencher(parametros):
+    kp_var.set(f"{parametros.kp:.6f}")
+    ti_var.set(f"{parametros.ti:.6f}")
+    td_var.set(f"{parametros.td:.6f}")
 
 def simular():
     try:
