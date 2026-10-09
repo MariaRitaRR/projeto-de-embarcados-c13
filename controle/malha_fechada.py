@@ -71,8 +71,8 @@ def _cruzamento(t, y, nivel):
 
 
 def calcular_metricas(t, y, setpoint, valor_final):
- 
-    tr = _cruzamento(t, y, 0.9 * valor_final) - _cruzamento(t, y, 0.1 * valor_final)
+    t10 = _cruzamento(t, y, 0.1 * valor_final)
+    t90 = _cruzamento(t, y, 0.9 * valor_final)
 
     fora = np.flatnonzero(np.abs(y - valor_final) > 0.02 * abs(valor_final))
     if len(fora) == 0:
@@ -86,7 +86,9 @@ def calcular_metricas(t, y, setpoint, valor_final):
     erro = setpoint - valor_final
     return {
         "valor_final": float(valor_final),
-        "tempo_subida": float(tr),
+        "tempo_subida": float(t90 - t10),
+        "tempo_10": float(t10),
+        "tempo_90": float(t90),
         "tempo_acomodacao": float(ts),
         "overshoot": float(max(0.0, (y[i_pico] - valor_final) / valor_final * 100)),
         "pico": float(y[i_pico]),
@@ -109,8 +111,8 @@ def _simular(sistema, amplitude, setpoint, t):
 
 
 def _metricas_instavel(polos, aviso):
-    chaves = ("valor_final", "tempo_subida", "tempo_acomodacao", "overshoot", "pico",
-              "tempo_pico", "erro_regime", "erro_regime_pct")
+    chaves = ("valor_final", "tempo_subida", "tempo_10", "tempo_90", "tempo_acomodacao",
+              "overshoot", "pico", "tempo_pico", "erro_regime", "erro_regime_pct")
     return {"estavel": False, "aviso": aviso, "polos": polos, **dict.fromkeys(chaves, math.nan)}
 
 

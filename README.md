@@ -111,6 +111,7 @@ Parâmetros opcionais que todas as funções de simulação aceitam:
 | `aviso` | `None`, ou um texto explicando o problema (malha instável, resposta que não acomodou) |
 | `valor_final` | Valor final em RPM, pelo Teorema do Valor Final |
 | `tempo_subida` | Tempo de 10 % a 90 % do valor final (s) |
+| `tempo_10`, `tempo_90` | Instantes em que a resposta cruza 10 % e 90 % do valor final (s), usados para marcar o tempo de subida no gráfico |
 | `tempo_acomodacao` | Tempo para entrar e ficar na faixa de 2 % do valor final (s) |
 | `overshoot` | Sobressinal em % do valor final |
 | `pico`, `tempo_pico` | Valor máximo da resposta (RPM) e o instante em que ocorre (s) |
