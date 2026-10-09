@@ -9,7 +9,7 @@ import sys
 sys.stdout.reconfigure(encoding="utf-8")
 
 # %% Carregar dataset 
-dados = loadmat("Motor_G2.mat")
+dados = loadmat("dataset/Motor_G2.mat")
 tempo = dados["t"].ravel()
 entrada = dados["Degrau"].ravel()
 saida = dados["Saida"].ravel()
@@ -61,7 +61,7 @@ modelo = {
     "eqm": melhor.eqm, "fator_incontrolabilidade": melhor.fator,
     "ajustado": {"k": k_aj, "tau": tau_aj, "theta": theta_aj, "eqm": float(res.fun)},
 }
-with open("modelo_identificado.json", "w", encoding="utf-8") as f:
+with open("identificação/modelo_identificado.json", "w", encoding="utf-8") as f:
     json.dump(modelo, f, indent=2, ensure_ascii=False)
 
 plt.show()

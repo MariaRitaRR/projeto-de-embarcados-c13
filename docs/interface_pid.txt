@@ -1,0 +1,7 @@
+Interface de controle PID
+
+A interface permite alterar os parâmetros Kp, Ti e Td do controlador PID, além do setpoint de velocidade do motor CC. Também disponibiliza o carregamento dos parâmetros calculados pelos métodos de Ziegler-Nichols em malha aberta e Cohen-Coon.
+
+Após a simulação, são apresentados o gráfico da resposta do motor, o tempo de subida, o tempo de acomodação, o overshoot, o erro em regime e a condição de estabilidade do sistema.
+
+A interface utiliza o modelo identificado e ajustado a partir dos dados do ensaio do motor CC. Os resultados dependem dos parâmetros informados e das características desse modelo.

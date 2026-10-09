@@ -1,0 +1,23 @@
+Sintonia Cohen-Coon
+
+O método de Cohen-Coon é utilizado para realizar a sintonia do controlador PID a partir dos parâmetros obtidos no modelo do processo. Para o Motor CC foram considerados os parâmetros identificados no ensaio da curva de reação.
+
+Parâmetros utilizados:
+
+K = 22.5
+tau = 20.0 s
+theta = 2.5 s
+
+O fator de incontrolabilidade é calculado pela relação:
+
+theta/tau = 2.5/20.0 = 0.1250
+
+A partir desses valores, foram calculados os parâmetros do controlador PID:
+
+Kp = 0.485185
+Ti = 5.848214 s
+Td = 0.888889 s
+
+Esses valores são utilizados como os parâmetros iniciais da sintonia Cohen-Coon.
+
+O fator theta/tau obtido para o processo foi 0.1250. Portanto, o valor está abaixo de 0.3, enquanto a descrição do método no material do projeto apresenta Cohen-Coon como uma técnica proposta para processos com fator de incontrolabilidade maior que 0.3. O valor obtido deve ser apresentado como uma característica do processo identificado.

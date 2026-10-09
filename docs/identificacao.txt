@@ -1,0 +1,17 @@
+Identificação do Motor CC
+
+A identificação do processo é realizada a partir do conjunto de dados do Motor CC, obtido pelo ensaio da curva de reação em malha aberta.
+
+O objetivo é obter um modelo aproximado do processo utilizando os métodos de Smith e Sundaresan. Os dois métodos utilizam a resposta do sistema a um sinal do tipo degrau para determinar os parâmetros do modelo.
+
+Os principais parâmetros obtidos são:
+
+K – ganho do processo;
+tau – constante de tempo;
+theta – atraso de transporte.
+
+Para cada método, a resposta estimada deve ser comparada com a resposta real do conjunto de dados.
+
+O erro quadrático médio (EQM) é utilizado para avaliar a diferença entre a resposta real e a resposta estimada. Quanto menor o EQM, melhor é a aproximação do modelo em relação aos dados experimentais.
+
+Além dos valores dos parâmetros, a comparação das curvas permite verificar visualmente qual modelo representa melhor o comportamento observado no conjunto de dados.
