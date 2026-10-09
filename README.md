@@ -36,7 +36,34 @@ $$G(s) = \frac{k}{\tau s + 1}\,e^{-\theta s}$$
 
 O atraso $\theta$ não aparece nas equações ideais do motor. Em um sistema real, ele vem de fatores como o tempo de amostragem do controlador, a filtragem da medição e o atrito estático. Já a constante de tempo identificada, de cerca de 20 s, é alta para um motor pequeno, o que indica um motor acionando uma carga com bastante inércia.
 
+#### Sensores e atuadores
 
+Em uma implementação real, a malha da Figura 1 é fechada por um **microcontrolador** (como Arduino, ESP32 ou STM32), que lê a velocidade do motor, calcula a ação do PID e comanda o acionamento.
+
+**Atuador.** O microcontrolador não fornece a corrente que o motor precisa. Por isso, a tensão de armadura é aplicada por um **driver de potência em ponte H**, por exemplo o L298N para motores pequenos ou o BTS7960 para correntes maiores. O controlador comanda o driver por **PWM**: a tensão média na armadura é proporcional ao *duty cycle*, e é esse sinal, de 0 a 100 %, que faz o papel da entrada do modelo. A ponte H também permite inverter o sentido de giro e frear o motor.
+
+**Sensores de velocidade.**
+- **Encoder incremental** (óptico ou magnético), acoplado ao eixo. Ele gera um número fixo de pulsos por volta, e a velocidade é obtida contando os pulsos em um intervalo de tempo. É a opção mais comum em sistemas embarcados, por ser digital e preciso.
+- **Tacogerador**, um pequeno gerador CC no eixo cuja tensão de saída é proporcional à velocidade. Fornece um sinal analógico contínuo, lido pelo conversor A/D.
+- **Sensor de efeito Hall** com um ímã no eixo. Funciona como um encoder de poucos pulsos por volta: é mais simples e barato, mas tem menor resolução em baixas velocidades.
+
+Também é possível usar um **sensor de corrente** na armadura, como o ACS712, para proteger o motor contra sobrecorrente. A forma de medir a velocidade influencia o modelo: o intervalo de contagem dos pulsos e a filtragem do sinal introduzem atraso, o que contribui para o $\theta$ identificado.
+
+### 2. Variáveis do processo
+
+| Variável | Grandeza | Faixa de operação |
+|---|---|---|
+| **Controlada (PV)** | Velocidade de rotação do eixo | 0 a ≈ 2250 RPM; ponto de operação do ensaio: 1800 RPM |
+| **Manipulada (MV)** | Sinal de acionamento do driver (*duty cycle* do PWM) | 0 a 100 %; o ensaio aplicou um degrau de 0 para 80 % |
+
+As faixas vêm do próprio ensaio. O dataset informa a unidade da saída (RPM) e descreve o ensaio como um degrau de 80 % com velocidade alvo de 1800 RPM. Com o ganho identificado, $k \approx 22{,}5$ RPM/%, o acionamento máximo (100 %) levaria o motor a cerca de $22{,}5 \times 100 \approx 2250$ RPM, supondo que ele se comporte de forma linear até esse ponto. Na prática, a faixa útil também é limitada pela tensão nominal do motor e pela corrente máxima do driver. Por isso o SetPoint deve ficar abaixo do máximo, deixando margem para o controlador corrigir perturbações.
+
+**Principais perturbações:**
+- **Variação da carga no eixo:** um aumento do torque resistente reduz a velocidade para o mesmo acionamento. É a perturbação mais importante no controle de velocidade e a principal razão para fechar a malha.
+- **Variação da tensão de alimentação:** quedas na fonte ou na bateria reduzem a tensão efetiva na armadura, mesmo com o *duty cycle* constante.
+- **Aquecimento do motor:** a resistência da armadura aumenta com a temperatura, o que muda a relação entre tensão, corrente e torque ao longo da operação.
+- **Atrito variável:** o desgaste das escovas e mudanças na lubrificação dos mancais alteram as perdas mecânicas.
+- **Ruído de medição:** a leitura de velocidade oscila em torno do valor real. Nos dados do ensaio, o desvio padrão da saída em regime é de cerca de 10 RPM, o que explica por que o EQM da identificação não fica abaixo de ≈ 10 RPM.
 
 ## Simulação da malha (`controle/malha_fechada.py`)
 
