@@ -1,7 +1,11 @@
+import sys
 import tkinter as tk
+from pathlib import Path
 from tkinter import ttk, messagebox
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # permite rodar o arquivo direto, além de python -m
 
 from controle.malha_fechada import (
     carregar_modelo,
