@@ -5,6 +5,7 @@ from pathlib import Path
 from tkinter import ttk, messagebox
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from identificação.interface_identificacao import InterfaceIdentificacao
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # permite rodar o arquivo direto, além de python -m
 
@@ -140,7 +141,16 @@ janela = tk.Tk()
 janela.title("Controle PID - Motor CC - Grupo 2")
 janela.geometry("1050x760")
 
-principal = ttk.Frame(janela, padding=12)
+abas = ttk.Notebook(janela)
+abas.pack(fill="both", expand=True)
+
+aba_controle = ttk.Frame(abas)
+aba_identificacao = ttk.Frame(abas)
+
+abas.add(aba_controle, text="Controle PID")
+abas.add(aba_identificacao, text="Identificação")
+
+principal = ttk.Frame(aba_controle, padding=12)
 principal.pack(fill="both", expand=True)
 
 ttk.Label(
@@ -264,4 +274,7 @@ canvas.get_tk_widget().pack(fill="both", expand=True)
 
 carregar_metodo(parametros_cc)
 atualizar_modo()
+
+interface_identificacao = InterfaceIdentificacao(aba_identificacao)
+
 janela.mainloop()
