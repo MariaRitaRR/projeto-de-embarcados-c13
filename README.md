@@ -83,6 +83,29 @@ pip install -r requirements.txt
 python controle/malha_fechada.py   # exemplo: imprime as métricas e salva figuras/simulacao_pid_teste.png
 ```
 
+### Configurar usuário e senha da interface
+
+Antes de abrir a interface, crie o arquivo `.env` na pasta raiz do projeto a partir do modelo:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Edite o `.env` e defina as credenciais que serão usadas na tela de autenticação:
+
+```dotenv
+LOGIN_USERNAME=seu_usuario
+LOGIN_PASSWORD=sua_senha
+```
+
+Inicie a interface pela tela de login, também a partir da pasta raiz:
+
+```bash
+python interface/login.py
+```
+
+O arquivo `.env` é local e está ignorado pelo Git; não o envie ao repositório. O `.env.example` é apenas um modelo, então cada pessoa deve criar seu próprio `.env`. Se as variáveis `LOGIN_USERNAME` e `LOGIN_PASSWORD` não estiverem definidas, a interface informa que é necessário configurar o arquivo.
+
 Em outro script, importe as funções assim:
 
 ```python
