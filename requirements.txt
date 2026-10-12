@@ -2,3 +2,4 @@ numpy>=2.4
 scipy>=1.18
 matplotlib>=3.10
 control>=0.10.2
+python-dotenv>=1.0.0
