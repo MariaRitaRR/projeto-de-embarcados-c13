@@ -1,14 +1,19 @@
 import math
+import runpy
 import sys
 import tkinter as tk
 from pathlib import Path
 from tkinter import ttk, messagebox
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from identificação.interface_identificacao import InterfaceIdentificacao
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # permite rodar o arquivo direto, além de python -m
 
+if not globals().get("_LOGIN_AUTHENTICATED", False):
+    runpy.run_path(str(Path(__file__).with_name("login.py")), run_name="__main__")
+    raise SystemExit
+
+from identificação.interface_identificacao import InterfaceIdentificacao
 from controle.malha_fechada import (
     carregar_modelo,
     simular_malha_fechada,
