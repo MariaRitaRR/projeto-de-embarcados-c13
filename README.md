@@ -106,6 +106,21 @@ python interface/login.py
 
 O arquivo `.env` é local e está ignorado pelo Git; não o envie ao repositório. O `.env.example` é apenas um modelo, então cada pessoa deve criar seu próprio `.env`. Se as variáveis `LOGIN_USERNAME` e `LOGIN_PASSWORD` não estiverem definidas, a interface informa que é necessário configurar o arquivo.
 
+### Exportar métricas da interface
+
+Depois de executar uma simulação estável, use o botão **Exportar CSV** para escolher onde salvar os resultados. O arquivo contém uma linha com os parâmetros do controlador e as métricas calculadas:
+
+| Coluna | Grandeza | Unidade |
+|---|---|---|
+| `kp` | Ganho proporcional | %/RPM |
+| `ti` | Tempo integral | s |
+| `td` | Tempo derivativo | s |
+| `tr` | Tempo de subida | s |
+| `ts` | Tempo de acomodação | s |
+| `mp` | Overshoot | % |
+
+O CSV usa ponto e vírgula (`;`) como separador de colunas e vírgula como separador decimal, para facilitar a abertura no Excel em português.
+
 Em outro script, importe as funções assim:
 
 ```python

@@ -1,9 +1,10 @@
+import csv
 import math
 import runpy
 import sys
 import tkinter as tk
 from pathlib import Path
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
@@ -31,6 +32,7 @@ def parametros_cc():
     return cohen_coon(modelo["k"], modelo["tau"], modelo["theta"])
 
 ultimo_metodo = None  # parâmetros do último método carregado (ZN ou CC)
+ultima_simulacao = None
 
 def preencher(parametros):
     kp_var.set(f"{parametros.kp:.6f}")
@@ -82,7 +84,47 @@ def mostrar_metricas(metricas=None):
     ts_var.set(f"{metricas['tempo_acomodacao']:.3f}")
     mp_var.set(f"{metricas['overshoot']:.2f}")
 
+def exportar_metricas():
+    if ultima_simulacao is None:
+        messagebox.showwarning("Sem métricas", "Execute uma simulação estável antes de exportar.")
+        return
+
+    caminho = filedialog.asksaveasfilename(
+        title="Exportar métricas",
+        defaultextension=".csv",
+        initialfile="metricas_pid.csv",
+        filetypes=[("Arquivo CSV", "*.csv")],
+    )
+    if not caminho:
+        return
+
+    try:
+        cabecalhos = {
+            "kp": "kp (%/RPM)",
+            "ti": "ti (s)",
+            "td": "td (s)",
+            "tr": "tr (s)",
+            "ts": "ts (s)",
+            "mp": "mp (%)",
+        }
+        linha_csv = {
+            cabecalhos[chave]: f"{valor:.6f}".replace(".", ",") if math.isfinite(valor) else ""
+            for chave, valor in ultima_simulacao.items()
+        }
+        with open(caminho, "w", newline="", encoding="utf-8-sig") as arquivo:
+            escritor = csv.DictWriter(
+                arquivo,
+                fieldnames=linha_csv.keys(),
+                delimiter=";",
+            )
+            escritor.writeheader()
+            escritor.writerow(linha_csv)
+        messagebox.showinfo("Exportação concluída", f"Métricas salvas em:\n{caminho}")
+    except OSError as erro:
+        messagebox.showerror("Erro ao exportar", str(erro))
+
 def sintonizar():
+    global ultima_simulacao
     try:
         kp = ler_numero(kp_var, "Kp")
         ti = ler_numero(ti_var, "Ti")
@@ -97,6 +139,8 @@ def sintonizar():
         )
 
         if not metricas["estavel"]:
+            ultima_simulacao = None
+            botao_exportar.config(state="disabled")
             resultado_var.set(metricas["aviso"])
             mostrar_metricas(None)
             eixo.clear()
@@ -136,6 +180,15 @@ def sintonizar():
             f"Ganho crítico aproximado: {ganho_critico(modelo):.4f}"
         )
         mostrar_metricas(metricas)
+        ultima_simulacao = {
+            "kp": kp,
+            "ti": ti,
+            "td": td,
+            "tr": metricas["tempo_subida"],
+            "ts": metricas["tempo_acomodacao"],
+            "mp": metricas["overshoot"],
+        }
+        botao_exportar.config(state="normal")
 
     except (ValueError, TypeError, ZeroDivisionError) as erro:
         messagebox.showerror("Parâmetros inválidos", str(erro))
@@ -242,6 +295,14 @@ ttk.Button(
     text="Sintonizar",
     command=sintonizar
 ).pack(side="left", padx=5)
+
+botao_exportar = ttk.Button(
+    botoes,
+    text="Exportar CSV",
+    command=exportar_metricas,
+    state="disabled",
+)
+botao_exportar.pack(side="left", padx=5)
 
 metricas_frame = ttk.Frame(principal)
 metricas_frame.pack(pady=4)
