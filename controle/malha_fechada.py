@@ -10,6 +10,7 @@ CAMINHO_MODELO = RAIZ / "identificação" / "modelo_identificado.json"
 SETPOINT_PADRAO = 1800.0  # RPM, valor final do ensaio
 ORDEM_PADE = 3
 GANHO_PADRAO = 0.2  # K da malha fechada do item 4, ~1/3 do ganho crítico
+CARGA_PADRAO = 15.0  # % do acionamento; a 1800 RPM o PWM está em 80%, então sobram 20% de margem
 N_PONTOS = 3000
 
 
@@ -70,9 +71,21 @@ def _cruzamento(t, y, nivel):
     return t[idx - 1] + (nivel - y[idx - 1]) * (t[idx] - t[idx - 1]) / (y[idx] - y[idx - 1])
 
 
+def _inicio_subida(t, y, nivel, t90):
+    # Última vez que a resposta cruza `nivel` subindo antes de t90. Ignora o transitório
+    # inicial da derivada ideal com Padé, que cruza 10% antes de a planta reagir (t < theta).
+    if math.isnan(t90):
+        return math.nan
+    abaixo = np.flatnonzero((y < nivel) & (t < t90))
+    if len(abaixo) == 0:
+        return t[0]
+    i = abaixo[-1] + 1
+    return t[i - 1] + (nivel - y[i - 1]) * (t[i] - t[i - 1]) / (y[i] - y[i - 1])
+
+
 def calcular_metricas(t, y, setpoint, valor_final):
-    t10 = _cruzamento(t, y, 0.1 * valor_final)
     t90 = _cruzamento(t, y, 0.9 * valor_final)
+    t10 = _inicio_subida(t, y, 0.1 * valor_final, t90)
 
     fora = np.flatnonzero(np.abs(y - valor_final) > 0.02 * abs(valor_final))
     if len(fora) == 0:
@@ -132,6 +145,60 @@ def simular_malha_fechada(kp, ti, td, setpoint=SETPOINT_PADRAO, modelo=None,
     t = _vetor_tempo(polos, modelo["tau"], t_final)
     y, metricas = _simular(sistema, setpoint, setpoint, t)
     return t, y, {"estavel": True, "polos": polos, **metricas}
+
+
+def simular_degrau_carga(kp, ti, td, setpoint=SETPOINT_PADRAO, carga=CARGA_PADRAO, t_carga=None,
+                         modelo=None, ordem_pade=ORDEM_PADE):
+    """Degrau de SetPoint em t = 0 e degrau de carga em t = t_carga.
+
+    A carga entra na entrada da planta, Y = G·(U − D), como um torque resistente equivalente
+    a `carga` % do acionamento: sem controle, a velocidade cairia k·carga RPM de forma permanente.
+    As métricas de subida, acomodação e overshoot são as do degrau de SetPoint; a resposta à
+    carga ganha `queda_carga`, `tempo_recuperacao` e `queda_malha_aberta`.
+    """
+    modelo = modelo or carregar_modelo()
+    t_servo, _, metricas = simular_malha_fechada(kp, ti, td, setpoint, modelo, ordem_pade)
+    if not metricas["estavel"]:
+        return t_servo, np.array([]), metricas
+
+    if t_carga is None:  # depois da acomodação, para separar as duas respostas
+        t_carga = math.ceil(1.5 * metricas["tempo_acomodacao"]) if math.isfinite(
+            metricas["tempo_acomodacao"]) else t_servo[-1]
+    if t_carga < 0:
+        raise ValueError("O instante da carga não pode ser negativo.")
+
+    planta = planta_fopdt(modelo["k"], modelo["tau"], modelo["theta"], ordem_pade)
+    pid = controlador_pid(kp, ti, td)
+    servo = ct.feedback(ct.series(pid, planta), 1)
+    regulador = ct.feedback(planta, pid)  # Y/D = G/(1 + PID·G)
+
+    t = np.linspace(0, t_carga + t_servo[-1], 2 * N_PONTOS)
+    _, y_servo = ct.step_response(servo, T=t)
+    y_servo = setpoint * np.asarray(y_servo).ravel()
+    _, y_carga = ct.forced_response(regulador, T=t, U=np.where(t >= t_carga, -carga, 0.0))
+    y_carga = np.asarray(y_carga).ravel()
+    y = y_servo + y_carga
+
+    valor_final = metricas["valor_final"]
+    metricas = {**metricas, **calcular_metricas(t, y_servo, setpoint, valor_final)}
+    depois = t >= t_carga
+    fora = np.flatnonzero(depois & (np.abs(y - valor_final) > 0.02 * abs(valor_final)))
+    if len(fora) == 0:
+        recuperacao = 0.0
+    elif fora[-1] == len(y) - 1:
+        recuperacao = math.nan
+    else:
+        recuperacao = float(t[fora[-1] + 1] - t_carga)
+    i_vale = int(np.argmin(np.where(depois, y_carga, np.inf)))
+    metricas.update({
+        "carga": float(carga),
+        "t_carga": float(t_carga),
+        "queda_carga": float(-y_carga[i_vale]),
+        "tempo_vale": float(t[i_vale]),
+        "tempo_recuperacao": recuperacao,
+        "queda_malha_aberta": float(modelo["k"] * carga),
+    })
+    return t, y, metricas
 
 
 def simular_sem_controlador(setpoint=SETPOINT_PADRAO, ganho=GANHO_PADRAO, modelo=None,
