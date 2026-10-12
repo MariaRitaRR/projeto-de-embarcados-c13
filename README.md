@@ -158,6 +158,15 @@ Parâmetros opcionais que todas as funções de simulação aceitam:
 
 ### Exemplo: item 4 (malha aberta × malha fechada)
 
+Para gerar uma figura dedicada com as duas respostas e imprimir as métricas no terminal, execute na raiz do projeto:
+
+```bash
+python "identificação/comparar_malhas.py"
+```
+
+A figura é salva em `figuras/comparacao_malhas.png`.
+O texto com a figura, a tabela e a análise dos resultados está em [`docs/comparacao_malhas.txt`](docs/comparacao_malhas.txt).
+
 ```python
 import matplotlib.pyplot as plt
 from controle.malha_fechada import simular_sem_controlador, ganho_critico

@@ -1,0 +1,63 @@
+COMPARAÇÃO ENTRE MALHA ABERTA E MALHA FECHADA
+================================================
+
+OBJETIVO
+--------
+Comparar a velocidade do motor nas duas configurações e observar o tempo de
+resposta e o erro em regime permanente.
+
+CONDIÇÕES DA SIMULAÇÃO
+---------------------
+Setpoint: 1800 RPM
+Modelo: modelo FOPDT identificado do motor
+
+Malha aberta:
+	A entrada é calculada como setpoint / ganho do processo. Assim, o modelo
+	recebe o acionamento estimado para chegar a 1800 RPM.
+
+Malha fechada:
+	Foi usado um controlador proporcional com ganho K = 0,2, sem ação integral.
+
+RESULTADOS
+---------
+
+MALHA ABERTA
+	Valor final:             1800,00 RPM
+	Tempo de subida:           43,88 s
+	Tempo de acomodação:        80,71 s
+	Erro em regime:              0,00 RPM (aprox. 0,00%)
+	Overshoot:                   0,00%
+
+MALHA FECHADA (K = 0,2)
+	Valor final:             1472,71 RPM
+	Tempo de subida:            3,45 s
+	Tempo de acomodação:        13,53 s
+	Erro em regime:            327,29 RPM (18,18%)
+	Overshoot:                  10,87%
+
+COMO LER AS MÉTRICAS
+--------------------
+Tempo de subida é o tempo para a resposta ir de 10% a 90% do seu valor final.
+Tempo de acomodação é o tempo até a resposta entrar e permanecer dentro de uma
+faixa de 2% em torno do valor final. O erro em regime é a diferença entre o
+setpoint e o valor final da resposta.
+
+ANÁLISE
+-------
+A malha fechada responde mais rapidamente. Seu tempo de subida é cerca de 12,7
+vezes menor, e seu tempo de acomodação é cerca de 6 vezes menor que os da malha
+aberta. Porém, a resposta apresenta overshoot e se estabiliza abaixo do
+setpoint, com erro de 327,29 RPM. Isso ocorre porque um controlador apenas
+proporcional não elimina totalmente o erro em regime permanente.
+
+Na malha aberta, o erro simulado é praticamente zero porque o acionamento foi
+calculado usando o ganho conhecido do modelo. Esse resultado depende de o
+modelo representar corretamente o motor. Como não há realimentação, mudanças
+de carga ou de alimentação não são corrigidas automaticamente. A ação integral
+do PID pode reduzir o erro que permanece na malha fechada.
+
+GRÁFICO
+-------
+Arquivo: figuras/comparacao_malhas.png
+
+Os resultados são de simulação e não de um ensaio físico do motor.
