@@ -10,6 +10,38 @@ Projeto Prático 1
 
 A aplicação identifica o modelo de um motor CC a partir de um ensaio de curva de reação (resposta ao degrau em malha aberta), sintoniza controladores PID por métodos clássicos e permite ao usuário testar a malha fechada em uma interface gráfica com login, seleção de método de sintonia, sintonia manual e métrica de desempenho (tempo de subida, tempo de acomodação e overshoot).
 
+### Estrutura do repositório
+
+| Caminho | Conteúdo |
+|---|---|
+| `dataset/Motor_G2.mat` | Ensaio da curva de reação do Grupo 2 (`t`, `Degrau`, `Saida` e metadados) |
+| `identificação/identificacao.py` | Leitura e validação do dataset, métodos de Smith e Sundaresan, EQM e ajuste fino |
+| `identificação/main_identificacao.py` | Itens 1 a 3: identifica, compara, faz o ajuste fino e salva `modelo_identificado.json` |
+| `identificação/sintonia_ziegler_nichols.py`, `sintonia_cohen_coon.py` | Regras de sintonia das Tabelas 1 e 5 do enunciado |
+| `identificação/comparar_malhas.py` | Item 4: malha aberta × malha fechada |
+| `identificação/comparar_sintonias.py` | Itens 5 e 6: ZN × Cohen-Coon |
+| `controle/malha_fechada.py` | Núcleo de simulação (planta FOPDT + Padé, PID, métricas, degrau de carga) |
+| `controle/degrau_carga.py` | Extra: rejeição de um degrau de carga |
+| `interface/login.py`, `interface/interface_pid.py` | Item 7: tela de login e interface com as abas Identificação e Controle PID |
+| `identificação/interface_identificacao.py` | Aba Identificação da interface |
+| `docs/` | Textos de apoio de cada item |
+| `figuras/` | Todos os gráficos, salvos em 300 dpi |
+
+### Como executar
+
+Instale as dependências e rode tudo **a partir da pasta raiz** do projeto:
+
+```bash
+pip install -r requirements.txt
+python "identificação/main_identificacao.py"   # itens 1 a 3 (gera o JSON e as figuras de identificação)
+python "identificação/comparar_malhas.py"      # item 4
+python "identificação/comparar_sintonias.py"   # itens 5 e 6
+python controle/degrau_carga.py                # extra: degrau de carga
+python interface/login.py                      # item 7 (precisa do .env, veja abaixo)
+```
+
+Os scripts também funcionam como módulo, por exemplo `python -m identificação.main_identificacao`.
+
 ## Parte teórica
 
 ### 1. Funcionamento da planta
@@ -65,9 +97,167 @@ As faixas vêm do próprio ensaio. O dataset informa a unidade da saída (RPM) e
 - **Atrito variável:** o desgaste das escovas e mudanças na lubrificação dos mancais alteram as perdas mecânicas.
 - **Ruído de medição:** a leitura de velocidade oscila em torno do valor real. Nos dados do ensaio, o desvio padrão da saída em regime é de cerca de 10 RPM, o que explica por que o EQM da identificação não fica abaixo de ≈ 10 RPM.
 
+**Faixas das perturbações.** Os valores abaixo são faixas típicas para um motor CC pequeno acionado por PWM. O efeito foi estimado com o modelo identificado no ponto de operação de 1800 RPM:
+
+| Perturbação | Faixa típica | Efeito sem controle (malha aberta) |
+|---|---|---|
+| Carga no eixo | 0 a 20 % do acionamento equivalente: a 1800 RPM o PWM já está em 80 %, então essa é a carga máxima que o controlador consegue compensar sem saturar | Queda de até $k \times 20 \approx 450$ RPM |
+| Tensão de alimentação | ±10 % da nominal (fonte ou bateria descarregando) | A velocidade acompanha a tensão: ≈ ±180 RPM |
+| Aquecimento do motor | $R_a$ aumenta ≈ 0,4 %/°C no cobre; de 25 °C a 75 °C, ≈ +20 % | Aumenta a queda de velocidade sob carga |
+| Atrito variável | Poucos % do torque nominal | Desvios de algumas dezenas de RPM |
+| Ruído de medição | Desvio padrão ≈ 10 RPM (9,3 a 10,5 RPM no ensaio) | Não muda a média, mas é amplificado pela ação derivativa |
+
+## Parte prática
+
+### 1. Dataset do grupo
+
+O ensaio do Grupo 2 está em `dataset/Motor_G2.mat`. São 1501 amostras em 150 s ($\Delta t$ = 0,1 s). Em t = 10 s, a entrada (`Degrau`, *duty cycle* do PWM em %) passa de 0 para 80 %, e a saída (`Saida`, em RPM) sobe de ≈ 0 até ≈ 1800 RPM. O arquivo também traz metadados: a unidade da saída (`unidade_saida = "RPM"`), uma descrição do ensaio e a velocidade alvo (`rpm_final = 1800`), que a interface usa como SetPoint inicial.
+
+### 2. Identificação: método e modelo
+
+**Modelo.** A curva de reação é monotônica, sem sobressinal, com formato em "S" e um atraso antes de reagir. É a resposta típica de um sistema de **primeira ordem com atraso (FOPDT)**, coerente com a física do motor: o polo elétrico é muito mais rápido que o mecânico (seção 1). Por isso o modelo adotado é $G(s) = \frac{k}{\tau s + 1}e^{-\theta s}$.
+
+**Parâmetros pelos dois métodos** (`python "identificação/main_identificacao.py"`):
+
+| Método | k (RPM/%) | τ (s) | θ (s) | θ/τ | EQM (RPM) |
+|---|---|---|---|---|---|
+| **Smith** | 22,47 | 19,86 | 2,47 | 0,124 | **10,46** |
+| Sundaresan | 22,47 | 18,81 | 3,21 | 0,171 | 16,37 |
+
+**Método escolhido: Smith**, por ter o menor EQM. A função de transferência identificada é:
+
+$$G_{Smith}(s) = \frac{22{,}47}{19{,}86\,s + 1}\,e^{-2{,}47\,s}$$
+
+**Por que Smith foi melhor, mesmo com ruído.** O enunciado indica Sundaresan para dados com mais ruído. Neste ensaio, porém, o ponto de 85,3 % usado por Sundaresan fica na parte final da curva, que é mais plana. Ali a inclinação da resposta normalizada, $(1-0{,}853)/\tau$, é 2,5 vezes menor do que no ponto de 63,2 % de Smith, $(1-0{,}632)/\tau$. Com uma inclinação menor, o mesmo ruído de ≈ 10 RPM desloca muito mais o instante em que a curva cruza o nível. Nos dados, a curva cruza os 85,3 % em 39,5 s, 1,2 s antes do modelo sem ruído; nos outros três pontos a diferença é de no máximo 0,1 s. Esse cruzamento antecipado reduz τ (18,81 s) e aumenta θ (3,21 s) pela fórmula $\theta = 1{,}3t_1 - 0{,}29t_2$. Na figura, a curva de Sundaresan começa a subir atrasada.
+
+![Resposta real x modelos identificados](figuras/identificacao.png)
+
+### 3. Validação e ajuste fino
+
+A aproximação de Smith é **satisfatória**: o EQM de 10,46 RPM é praticamente igual ao desvio padrão do ruído de medição (≈ 10 RPM). Ou seja, o que sobra de erro é quase todo ruído, e não diferença de dinâmica.
+
+Mesmo assim, foi feito um **ajuste fino**. Partindo dos valores de Smith, os três parâmetros foram refinados para minimizar o EQM (Nelder-Mead):
+
+| Parâmetro | Smith | Ajuste fino | Variação |
+|---|---|---|---|
+| k (RPM/%) | 22,47 | 22,50 | +0,1 % |
+| τ (s) | 19,86 | 19,97 | +0,6 % |
+| θ (s) | 2,47 | 2,54 | +2,8 % |
+| EQM (RPM) | 10,46 | 10,10 | −3,5 % |
+
+$$G(s) = \frac{22{,}50}{19{,}97\,s + 1}\,e^{-2{,}54\,s}$$
+
+O reflexo na resposta aparece no início da subida (zoom na figura): com θ um pouco maior, o modelo ajustado começa a subir junto com os dados, enquanto o de Smith se adianta. Como tem o menor EQM, **o modelo do ajuste fino é o adotado em todo o restante do projeto**.
+
+![Efeito do ajuste fino](figuras/ajuste_fino.png)
+
+### 4. Malha aberta × malha fechada
+
+Veja o [exemplo do item 4](#exemplo-item-4-malha-aberta--malha-fechada) e o texto completo em [`docs/comparacao_malhas.txt`](docs/comparacao_malhas.txt). Em resumo, com um ganho K = 0,2 a malha fechada sobe 12,7 vezes mais rápido e acomoda 6 vezes mais rápido que a malha aberta, mas fica com 18 % de erro em regime, que só a ação integral elimina.
+
+![Malha aberta e malha fechada](figuras/comparacao_malhas.png)
+
+### 5. Sintonia do PID (Tabela 8)
+
+Os parâmetros foram calculados com o modelo do ajuste fino (k = 22,50, τ = 19,97 s, θ = 2,54 s, θ/τ = 0,127) e simulados com SetPoint de 1800 RPM (`python "identificação/comparar_sintonias.py"`):
+
+| Técnica | Método | Kp (%/RPM) | Ti (s) | Td (s) |
+|---|---|---|---|---|
+| 1 | Ziegler-Nichols Malha Aberta | 0,4199 | 5,074 | 1,268 |
+| 5 | Cohen e Coon | 0,4776 | 5,930 | 0,902 |
+
+| Método | Tempo de subida | Tempo de acomodação (2 %) | Overshoot | Pico | Erro em regime |
+|---|---|---|---|---|---|
+| Ziegler-Nichols | 1,15 s | **22,74 s** | 68,8 % | 3039 RPM em 5,1 s | 0 |
+| Cohen-Coon | 1,20 s | 23,24 s | 84,2 % | 3315 RPM em 5,5 s | 0 |
+
+**Comportamento do sistema controlado.** As duas malhas são estáveis e zeram o erro em regime graças à ação integral. Comparadas com a malha aberta, sobem cerca de 38 vezes mais rápido e acomodam em menos de um terço do tempo. Em compensação, são muito oscilatórias. O ganho crítico do processo é $K_{cr} \approx 0{,}578$, e os dois Kp ficam perto dele: 73 % de $K_{cr}$ no ZN e 83 % no Cohen-Coon. Isso explica os sobressinais altos.
+
+O pico simulado passa de 3000 RPM, acima dos ≈ 2250 RPM que o motor alcança com 100 % de PWM. No motor real, o acionamento saturaria e o pico seria menor, mas a resposta ficaria mais lenta. Se o critério fosse sobressinal, esses ganhos teriam que ser reduzidos.
+
+O Cohen-Coon foi proposto para θ/τ > 0,3, e este processo tem θ/τ = 0,127. Fora da sua faixa, o método fica mais agressivo que o ZN.
+
+O texto completo dos itens 5 e 6 está em [`docs/comparacao_sintonias.txt`](docs/comparacao_sintonias.txt).
+
+> As duas curvas começam com um pico negativo. Ele é efeito da derivada ideal combinada com a aproximação de Padé, e não do motor (veja as [Observações](#observações)). As métricas ignoram esse trecho.
+
+![Comparação das sintonias](figuras/comparacao_sintonias.png)
+
+### 6. Método com menor tempo de resposta
+
+O critério do Grupo 2 é **(a) menor tempo de resposta**, tomado como o **tempo de acomodação** (critério de 2 %): o tempo que o motor leva para chegar à velocidade desejada e ficar nela.
+
+**O método mais rápido é o Ziegler-Nichols**, com 22,74 s contra 23,24 s do Cohen-Coon. Ele também tem tempo de subida um pouco menor (1,15 s contra 1,20 s) e sobressinal menor (69 % contra 84 %). No extra de degrau de carga, o ZN também recupera a velocidade mais rápido (6,81 s contra 6,94 s).
+
+**Por que o ZN se adequa melhor a esse critério:**
+- **Foi feito para ser rápido.** O ZN em malha aberta foi projetado para uma razão de decaimento de 1/4: ele aceita sobressinal em troca de uma resposta rápida, o que favorece o tempo de resposta.
+- **Nesta planta, o Cohen-Coon fica agressivo demais.** O fator de correção do Kp do Cohen-Coon, $(16\tau + 3\theta)/(12\tau) = 1{,}365$, foi pensado para processos com mais atraso. Com θ/τ = 0,127, ele dá um Kp 14 % maior que o do ZN.
+- **O Cohen-Coon tem menos amortecimento.** Seu Td é 29 % menor (0,90 s contra 1,27 s), então a ação derivativa amortece menos. Com mais ganho e menos amortecimento, a resposta oscila mais, e cada oscilação extra atrasa a entrada na faixa de 2 %.
+- **O tempo de subida é limitado pelo atraso.** Os dois métodos sobem em ≈ 1,2 s, porque a subida é limitada principalmente pelo atraso θ. Quem decide o tempo de resposta é o amortecimento, e nisso o ZN é melhor.
+
+A vantagem do ZN é pequena (≈ 0,5 s, cerca de 2 %), mas aparece em todas as ordens de Padé testadas (`ordem_pade` = 3, 5 e 8). Na prática, os dois métodos dão tempos de resposta parecidos, e o ZN chega lá com menos sobressinal.
+
+### 7. Interface (IHM)
+
+A interface foi feita em **Tkinter** e segue as Figuras 11 e 12 do enunciado. Ela é aberta pela tela de login (`python interface/login.py`) e tem duas abas.
+
+**Aba Identificação** (Figura 11a):
+- **Escolher arquivo** abre o seletor de `.mat`. O arquivo é validado: precisa ter as variáveis `t`, `Degrau` e `Saida` do mesmo tamanho, com valores numéricos, tempo crescente e um degrau na entrada. Se for inválido, aparece o motivo.
+- Com um dataset válido, a aba identifica por Smith e Sundaresan, faz o ajuste fino e **mostra o modelo de menor EQM**. A lista suspensa permite escolher qualquer um dos três; os campos k, τ, θ e EQM são somente leitura.
+- O gráfico sobrepõe a resposta real e os três modelos, destacando o escolhido. **Exportar** salva esse gráfico como imagem.
+- **A aba Controle PID só é liberada depois que um dataset válido é selecionado.** O modelo escolhido aqui é o usado no controle, e o SetPoint inicial passa a ser o do dataset (1800 RPM).
+
+**Aba Controle PID** (Figuras 11b e 12):
+- **Modo Método:** o usuário escolhe Ziegler-Nichols ou Cohen-Coon na lista "Sintonia PID". Kp, Ti e Td são calculados e simulados na hora, e **não podem ser editados**. O campo **λ fica sempre bloqueado**, porque só o IMC o usa e o Grupo 2 não usa IMC. O botão Sintonizar fica desabilitado nesse modo, como na Figura 12a.
+- **Modo Manual:** Kp, Ti e Td ficam editáveis, cada um com um botão ✕ para limpar. A lista de métodos e o λ ficam bloqueados. **Sintonizar** verifica a estabilidade antes de simular, pelos polos da malha fechada. Se a malha for instável, a simulação não é feita e a interface mostra os polos instáveis.
+- **SetPoint** editável, com valor inicial igual ao do dataset. No modo Método, Enter no campo refaz a simulação.
+- **tr, ts e mp** aparecem nos campos e marcados no gráfico. A opção "marcar" de cada um liga ou desliga o ponto correspondente. As unidades vêm dos metadados do dataset.
+- **Exportar** salva o gráfico como imagem (PNG, PDF ou SVG). **Exportar CSV** salva os parâmetros e as métricas.
+
+### Extras
+
+| Extra | Onde |
+|---|---|
+| Tela de login com credenciais no `.env` | `interface/login.py` |
+| Exportar métricas em CSV | Botão **Exportar CSV** da aba Controle PID |
+| Sobreposição das curvas real × Smith × Sundaresan (× ajuste fino) | Aba Identificação e `figuras/identificacao.png` |
+| Degrau de carga | Seção "Perturbação de carga" da aba Controle PID e `controle/degrau_carga.py` |
+
+**Degrau de carga.** A carga é modelada como um torque resistente que entra na entrada da planta, $Y = G\,(U - D)$, expresso em % do acionamento. Com uma carga de 15 % aplicada em t = 100 s (`python controle/degrau_carga.py`):
+
+| Resposta | Queda máxima | Volta à faixa de 2 % em | Erro final |
+|---|---|---|---|
+| Ziegler-Nichols | 42 RPM | 6,81 s | 0 |
+| Cohen-Coon | 43 RPM | 6,94 s | 0 |
+| Malha aberta | 335 RPM | não recupera | 335 RPM |
+
+Esse é o principal motivo para fechar a malha: sem realimentação, a carga derruba a velocidade de forma permanente. Com o PID, a queda é 8 vezes menor e a ação integral traz a velocidade de volta ao SetPoint.
+
+![Degrau de carga](figuras/degrau_carga.png)
+
+### Decisões de projeto
+
+| Decisão | Motivo |
+|---|---|
+| Python, com o pacote `control` | Opção prevista no enunciado |
+| Atraso por Padé de ordem 3 | O pacote `control` não tem atraso puro; a ordem 3 é a usada no enunciado |
+| Modelo do ajuste fino em todo o projeto | Menor EQM (antes era o de Smith) |
+| PID na forma ideal da eq. (8), sem filtro na derivada | É a forma definida no enunciado. Um filtro opcional (`n_filtro`) chegou a ser implementado e foi removido no commit `7686940`: ele não elimina o pico inicial e mudaria o controlador pedido |
+| Tempo de subida medido a partir do último cruzamento de 10 % antes dos 90 % | Ignora o pico inicial causado pelo Padé, que cruzaria os 10 % antes de a planta reagir |
+| "Tempo de resposta" = tempo de acomodação (2 %) | Mede quando o motor de fato chega à velocidade desejada |
+| Interface em Tkinter | Já vem com o Python e é uma das opções citadas no enunciado |
+
+### Limitações
+
+- **Pico negativo no início das respostas com PID.** É efeito da derivada ideal da eq. (8) combinada com a aproximação de Padé, e não do motor: no motor real, a velocidade ficaria parada durante o atraso θ. O pico continua nos gráficos porque a forma ideal do PID foi mantida, mas as métricas o ignoram (veja as [Observações](#observações)).
+- **Vantagem pequena do ZN no item 6.** O ZN acomoda cerca de 0,5 s antes do Cohen-Coon (≈ 2 %). A ordem é a mesma com Padé de ordem 3, 5 e 8, mas na prática os dois métodos têm tempos de resposta parecidos. O que mais os diferencia é o sobressinal: 69 % contra 84 %.
+- **Faixas das perturbações estimadas.** O enunciado não especifica o motor, o driver nem o sensor. As faixas de velocidade e de acionamento vêm do ensaio; as das perturbações são valores típicos de motores CC pequenos, e o efeito delas foi calculado com o modelo identificado.
+- **Simulação linear, sem saturação.** O modelo não limita o PWM a 0–100 %. Os picos de mais de 3000 RPM da sintonia (item 5) e cargas acima de 20 % exigiriam mais de 100 % de acionamento; no motor real, o driver saturaria e a resposta seria diferente.
+- **Resultados de simulação.** Todos os números vêm do modelo FOPDT identificado, e não de ensaios no motor físico.
+
 ## Simulação da malha (`controle/malha_fechada.py`)
 
-Este módulo é o núcleo de simulação do projeto. Ele é usado no modo Manual da interface, na comparação entre malha aberta e fechada (item 4) e nas sintonias ZN e Cohen-Coon (item 5).
+Este módulo é o núcleo de simulação do projeto. Ele é usado nos modos Método e Manual da interface, na comparação entre malha aberta e fechada (item 4), nas sintonias ZN e Cohen-Coon (itens 5 e 6) e no extra de degrau de carga.
 
 O módulo trabalha assim:
 - **Planta:** modelo FOPDT lido de `identificação/modelo_identificado.json`, com o atraso aproximado por Padé de ordem 3.
@@ -110,14 +300,16 @@ O arquivo `.env` é local e está ignorado pelo Git; não o envie ao repositóri
 
 Depois de executar uma simulação estável, use o botão **Exportar CSV** para escolher onde salvar os resultados. O arquivo contém uma linha com os parâmetros do controlador e as métricas calculadas:
 
-| Coluna | Grandeza | Unidade |
-|---|---|---|
-| `kp` | Ganho proporcional | %/RPM |
-| `ti` | Tempo integral | s |
-| `td` | Tempo derivativo | s |
-| `tr` | Tempo de subida | s |
-| `ts` | Tempo de acomodação | s |
-| `mp` | Overshoot | % |
+| Coluna | Grandeza |
+|---|---|
+| `kp (%/RPM)` | Ganho proporcional |
+| `ti (s)` | Tempo integral |
+| `td (s)` | Tempo derivativo |
+| `tr (s)` | Tempo de subida |
+| `ts (s)` | Tempo de acomodação |
+| `mp (%)` | Overshoot |
+
+A unidade do Kp segue a unidade de saída do dataset.
 
 O CSV usa ponto e vírgula (`;`) como separador de colunas e vírgula como separador decimal, para facilitar a abertura no Excel em português.
 
@@ -132,6 +324,7 @@ from controle.malha_fechada import simular_malha_fechada, simular_sem_controlado
 | Função | O que faz | Retorno |
 |---|---|---|
 | `simular_malha_fechada(kp, ti, td, setpoint=1800)` | Malha fechada com PID e degrau de SetPoint | `(t, y, metricas)` |
+| `simular_degrau_carga(kp, ti, td, setpoint=1800, carga=15, t_carga=None)` | Degrau de SetPoint em t = 0 e degrau de carga (% do acionamento) em `t_carga`. Sem `t_carga`, a carga entra depois da acomodação | `(t, y, metricas)` |
 | `simular_sem_controlador(setpoint=1800, ganho=0.2)` | Malha aberta (degrau Δu = SP/k) e malha fechada só com ganho K, no mesmo vetor de tempo | `{"aberta": (t, y, metricas), "fechada": (t, y, metricas)}` |
 | `ganho_critico()` | Ganho crítico Kcr da planta, calculado com o atraso exato | `float` (≈ 0,58) |
 | `carregar_modelo(ajustado=True)` | Lê k, τ e θ do JSON; por padrão usa o modelo do ajuste fino, e `ajustado=False` usa o de Smith | `{"k", "tau", "theta"}` |
@@ -139,7 +332,7 @@ from controle.malha_fechada import simular_malha_fechada, simular_sem_controlado
 Parâmetros opcionais que todas as funções de simulação aceitam:
 - **`modelo=`**: dicionário de `carregar_modelo()`. Se não for passado, usa o modelo do ajuste fino, que tem o menor EQM e é o adotado pelo grupo em todas as partes.
 - **`ordem_pade=3`**: ordem da aproximação de Padé.
-- **`t_final=`**: duração da simulação. Se não for passado, é escolhida automaticamente.
+- **`t_final=`**: duração da simulação. Se não for passado, é escolhida automaticamente (em `simular_degrau_carga`, ela é sempre automática).
 
 ### Métricas retornadas
 
@@ -149,12 +342,16 @@ Parâmetros opcionais que todas as funções de simulação aceitam:
 | `aviso` | `None`, ou um texto explicando o problema (malha instável, resposta que não acomodou) |
 | `valor_final` | Valor final em RPM, pelo Teorema do Valor Final |
 | `tempo_subida` | Tempo de 10 % a 90 % do valor final (s) |
-| `tempo_10`, `tempo_90` | Instantes em que a resposta cruza 10 % e 90 % do valor final (s), usados para marcar o tempo de subida no gráfico |
+| `tempo_10`, `tempo_90` | Instantes em que a resposta cruza 10 % e 90 % do valor final (s), usados para marcar o tempo de subida no gráfico. `tempo_10` é o último cruzamento de 10 % antes de `tempo_90`, para ignorar o pico inicial causado pelo Padé |
 | `tempo_acomodacao` | Tempo para entrar e ficar na faixa de 2 % do valor final (s) |
 | `overshoot` | Sobressinal em % do valor final |
 | `pico`, `tempo_pico` | Valor máximo da resposta (RPM) e o instante em que ocorre (s) |
 | `erro_regime`, `erro_regime_pct` | SetPoint − valor final, em RPM e em % |
 | `polos` | Polos da malha |
+| `carga`, `t_carga` | Só em `simular_degrau_carga`: carga aplicada (%) e instante (s) |
+| `queda_carga`, `tempo_vale` | Maior queda de velocidade causada pela carga (RPM) e o instante em que ocorre (s) |
+| `tempo_recuperacao` | Tempo, contado a partir de `t_carga`, até a velocidade voltar e ficar na faixa de 2 % (s); 0 se ela não sair da faixa |
+| `queda_malha_aberta` | Queda permanente que a mesma carga causaria sem controle, $k \times$ carga (RPM) |
 
 ### Exemplo: item 4 (malha aberta × malha fechada)
 
@@ -202,7 +399,7 @@ else:
 ### Observações
 
 - **Malha instável:** a simulação não é feita. `t` e `y` voltam vazios, as métricas voltam como `nan` e `metricas["aviso"]` explica o motivo.
-- **Pico negativo no início:** com ação derivativa ($T_d > 0$), a resposta começa com um pico negativo em t = 0. Isso é efeito da combinação da derivada ideal com a aproximação de Padé, não do motor. No motor real, a saída ficaria parada durante o atraso θ.
+- **Pico negativo no início:** com ação derivativa ($T_d > 0$), a resposta começa com um pico negativo em t = 0. Isso é efeito da combinação da derivada ideal com a aproximação de Padé, não do motor. No motor real, a saída ficaria parada durante o atraso θ. Esse pico cruza os 10 % do valor final antes de a planta reagir; por isso o tempo de subida usa o último cruzamento de 10 % antes dos 90 %. Sem essa regra, o tempo de subida do ZN sairia 3,12 s em vez de 1,15 s.
 
 ## Referências
 

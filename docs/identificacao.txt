@@ -15,3 +15,22 @@ Para cada método, a resposta estimada deve ser comparada com a resposta real do
 O erro quadrático médio (EQM) é utilizado para avaliar a diferença entre a resposta real e a resposta estimada. Quanto menor o EQM, melhor é a aproximação do modelo em relação aos dados experimentais.
 
 Além dos valores dos parâmetros, a comparação das curvas permite verificar visualmente qual modelo representa melhor o comportamento observado no conjunto de dados.
+
+-------
+
+Resultados (python "identificação/main_identificacao.py")
+
+Método        K (RPM/%)   tau (s)   theta (s)   theta/tau   EQM (RPM)
+Smith           22,47      19,86      2,47        0,124       10,46
+Sundaresan      22,47      18,81      3,21        0,171       16,37
+Ajuste fino     22,50      19,97      2,54        0,127       10,10
+
+Modelo escolhido: primeira ordem com atraso (FOPDT). A curva é monotônica, sem sobressinal e com atraso, que é a resposta típica desse modelo.
+
+Método escolhido: Smith, por ter o menor EQM. O ponto de 85,3 % usado por Sundaresan fica na parte mais plana da curva, onde o ruído de cerca de 10 RPM antecipa o cruzamento em 1,2 s. Isso reduz tau e aumenta theta.
+
+A aproximação de Smith é satisfatória: o EQM (10,46 RPM) é praticamente o desvio padrão do ruído de medição. O ajuste fino reduziu o EQM em 3,5 %, principalmente ao aumentar theta de 2,47 s para 2,54 s. O modelo do ajuste fino é o adotado no restante do projeto:
+
+G(s) = 22,50 / (19,97 s + 1) · e^(-2,54 s)
+
+Figuras: figuras/identificacao.png e figuras/ajuste_fino.png.
