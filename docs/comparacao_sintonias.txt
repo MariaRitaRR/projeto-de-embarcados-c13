@@ -1,0 +1,53 @@
+COMPARAÇÃO ENTRE AS SINTONIAS ZIEGLER-NICHOLS E COHEN-COON (ITENS 5 E 6)
+=========================================================================
+
+CONDIÇÕES DA SIMULAÇÃO
+---------------------
+Modelo: ajuste fino, K = 22,50 RPM/%, tau = 19,97 s, theta = 2,54 s (theta/tau = 0,127)
+Setpoint: 1800 RPM
+Controlador: PID ideal da eq. (8), atraso por Padé de ordem 3
+Script: python "identificação/comparar_sintonias.py"
+
+PARÂMETROS (TABELA 8)
+---------------------
+Técnica  Método                          Kp (%/RPM)   Ti (s)   Td (s)
+1        Ziegler-Nichols Malha Aberta      0,4199      5,074    1,268
+5        Cohen e Coon                      0,4776      5,930    0,902
+
+RESULTADOS
+---------
+Método            tr (s)   ts (s)   Overshoot   Pico (RPM)   Erro em regime
+Ziegler-Nichols    1,15    22,74      68,8 %       3039            0
+Cohen-Coon         1,20    23,24      84,2 %       3315            0
+
+Tempo de subida: de 10 % a 90 % do valor final. O pico negativo do início, causado pela derivada ideal com Padé, é ignorado.
+Tempo de acomodação: até entrar e permanecer na faixa de 2 % do valor final.
+
+COMPORTAMENTO DO SISTEMA CONTROLADO
+-----------------------------------
+As duas malhas são estáveis e zeram o erro em regime pela ação integral. Comparadas com a malha aberta (tr = 43,88 s, ts = 80,71 s), sobem cerca de 38 vezes mais rápido e acomodam em menos de um terço do tempo.
+
+As respostas são muito oscilatórias. O ganho crítico do processo é Kcr ≈ 0,578, e os ganhos ficam perto dele: 73 % de Kcr no ZN e 83 % no Cohen-Coon. O pico simulado passa de 3000 RPM, acima dos cerca de 2250 RPM que o motor alcança com 100 % de PWM. Em um motor real, o acionamento saturaria.
+
+Cohen-Coon foi proposto para theta/tau > 0,3. Com theta/tau = 0,127, ele fica mais agressivo que o ZN.
+
+ITEM 6: MENOR TEMPO DE RESPOSTA
+-------------------------------
+Critério do Grupo 2: (a) menor tempo de resposta, tomado como o tempo de acomodação de 2 %.
+
+O método mais rápido é o Ziegler-Nichols: 22,74 s contra 23,24 s. Ele também tem tempo de subida um pouco menor (1,15 s contra 1,20 s), menor overshoot (69 % contra 84 %) e recupera mais rápido de um degrau de carga (6,81 s contra 6,94 s).
+
+Justificativa:
+- O ZN em malha aberta foi projetado para uma razão de decaimento de 1/4: aceita sobressinal em troca de uma resposta rápida.
+- O fator (16 tau + 3 theta) / (12 tau) = 1,365 do Cohen-Coon foi pensado para processos com mais atraso. Aqui ele dá um Kp 14 % maior que o do ZN.
+- O Td do Cohen-Coon é 29 % menor, o que amortece menos a resposta. Com mais ganho e menos amortecimento, a resposta oscila mais e demora mais para entrar na faixa de 2 %.
+- O tempo de subida dos dois é parecido (cerca de 1,2 s), porque é limitado principalmente pelo atraso theta.
+
+A vantagem do ZN é pequena (cerca de 0,5 s, 2 %), mas se mantém com Padé de ordem 3, 5 e 8.
+
+GRÁFICOS
+-------
+figuras/comparacao_sintonias.png
+figuras/degrau_carga.png
+
+Os resultados são de simulação e não de um ensaio físico do motor.
