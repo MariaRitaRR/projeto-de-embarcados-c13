@@ -1,4 +1,3 @@
-
 import sys
 from pathlib import Path
 
@@ -73,6 +72,13 @@ def main():
 
         imprimir_metricas(nome, metricas)
         resultados[nome] = (t, y, metricas)
+
+    # Item 6: critério do Grupo 2, menor tempo de resposta (acomodação em 2%)
+    estaveis = {nome: r[2] for nome, r in resultados.items() if r[2]["estavel"]}
+    if estaveis:
+        mais_rapido = min(estaveis, key=lambda nome: estaveis[nome]["tempo_acomodacao"])
+        print(f"\nMenor tempo de resposta (ts): {mais_rapido} "
+              f"({estaveis[mais_rapido]['tempo_acomodacao']:.2f} s)")
 
     PASTA_FIGURAS.mkdir(exist_ok=True)
 

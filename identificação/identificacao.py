@@ -1,6 +1,67 @@
 from dataclasses import dataclass, field
+from pathlib import Path
 import numpy as np
 from scipy import signal
+from scipy.io import loadmat
+from scipy.optimize import minimize
+
+CHAVES_DATASET = ("t", "Degrau", "Saida")
+
+
+@dataclass
+class Dataset:
+    nome: str
+    tempo: np.ndarray = field(repr=False)
+    entrada: np.ndarray = field(repr=False)
+    saida: np.ndarray = field(repr=False)
+    unidade: str
+    descricao: str
+    setpoint: float  # valor de referência do ensaio, usado como SetPoint inicial
+
+
+def _texto(valor):
+    if valor is None:
+        return ""
+    return str(np.asarray(valor).ravel()[0]) if np.size(valor) else ""
+
+
+def _setpoint_do_ensaio(dados, saida):
+    # Usa o valor alvo dos metadados quando existe; senão, o valor final medido no ensaio
+    try:
+        return float(np.asarray(dados["parametros"]["rpm_final"].item()).ravel()[0])
+    except (KeyError, ValueError, IndexError, TypeError):
+        return float(round(saida[-max(1, len(saida) // 10):].mean()))
+
+
+def carregar_dataset(caminho):
+    """Lê e valida um .mat de curva de reação; levanta ValueError explicando o problema."""
+    caminho = Path(caminho)
+    try:
+        dados = loadmat(str(caminho))
+    except Exception as erro:
+        raise ValueError(f"Não foi possível ler {caminho.name}: {erro}") from None
+
+    faltando = [chave for chave in CHAVES_DATASET if chave not in dados]
+    if faltando:
+        raise ValueError(f"{caminho.name} não tem as variáveis: {', '.join(faltando)}.")
+    try:
+        tempo, entrada, saida = (np.asarray(dados[c], dtype=float).ravel() for c in CHAVES_DATASET)
+    except (TypeError, ValueError):
+        raise ValueError("As variáveis t, Degrau e Saida devem ser numéricas.") from None
+
+    if not len(tempo) == len(entrada) == len(saida):
+        raise ValueError("t, Degrau e Saida devem ter o mesmo número de amostras.")
+    if len(tempo) < 20:
+        raise ValueError("O ensaio tem poucas amostras para identificar o processo.")
+    if not all(np.all(np.isfinite(v)) for v in (tempo, entrada, saida)):
+        raise ValueError("O ensaio contém valores inválidos (NaN ou infinito).")
+    if np.any(np.diff(tempo) <= 0):
+        raise ValueError("O vetor de tempo deve ser crescente.")
+    if np.ptp(entrada) == 0:
+        raise ValueError("A entrada não apresenta degrau.")
+
+    return Dataset(caminho.name, tempo, entrada, saida, _texto(dados.get("unidade_saida")),
+                   _texto(dados.get("descricao")), _setpoint_do_ensaio(dados, saida))
 
 
 @dataclass
@@ -67,3 +128,16 @@ def identificar(tempo, entrada, saida, metodo):
 
     yest = simular_fopdt(k, tau, theta, tempo, entrada, u0, y0)
     return Modelo(metodo, k, tau, theta, eqm(yest, saida), u0, y0, yest)
+
+
+def ajuste_fino(tempo, entrada, saida, base):
+    """Refina k, tau e theta do modelo `base` minimizando o EQM (Nelder-Mead)."""
+    tempo, entrada, saida = (np.asarray(v, dtype=float).ravel() for v in (tempo, entrada, saida))
+
+    def custo(p):
+        return eqm(simular_fopdt(p[0], abs(p[1]), abs(p[2]), tempo, entrada, base.u0, base.y0), saida)
+
+    res = minimize(custo, [base.k, base.tau, base.theta], method="Nelder-Mead")
+    k, tau, theta = res.x[0], abs(res.x[1]), abs(res.x[2])
+    yest = simular_fopdt(k, tau, theta, tempo, entrada, base.u0, base.y0)
+    return Modelo("ajuste fino", k, tau, theta, float(res.fun), base.u0, base.y0, yest)

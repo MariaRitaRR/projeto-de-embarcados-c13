@@ -1,244 +1,171 @@
-
-import json
 import tkinter as tk
 from pathlib import Path
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 
-import matplotlib
-matplotlib.use("TkAgg")
-
-import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
-from scipy.io import loadmat
-from scipy.optimize import minimize
 
-from identificação.identificacao import identificar, simular_fopdt, eqm
+from identificação.identificacao import carregar_dataset, identificar, ajuste_fino
 
 
 RAIZ = Path(__file__).resolve().parents[1]
-CAMINHO_DATASET = RAIZ / "dataset" / "Motor_G2.mat"
-CAMINHO_MODELO = RAIZ / "identificação" / "modelo_identificado.json"
+PASTA_DATASET = RAIZ / "dataset"
+ESTILOS = {"Smith": "r--", "Sundaresan": "b-.", "Ajuste fino": "g-"}
 
 
 class InterfaceIdentificacao:
-    def __init__(self, parent):
-        self.parent = parent
-        self.janela = None
+    """Aba 'Identificação': escolhe e valida o dataset, identifica por Smith e Sundaresan,
+    faz o ajuste fino e entrega o modelo selecionado para a aba de controle.
 
-        ttk.Button(
-            parent,
-            text="Identificação do Processo",
-            command=self.abrir
-        ).pack(pady=5)
+    ao_selecionar(modelo, nome_metodo, dataset) é chamado a cada seleção, com
+    modelo = {"k", "tau", "theta"}.
+    """
 
-    def abrir(self):
-        if self.janela is not None and self.janela.winfo_exists():
-            self.janela.lift()
-            return
+    def __init__(self, parent, ao_selecionar):
+        self.ao_selecionar = ao_selecionar
+        self.dataset = None
+        self.modelos = {}
 
-        self.janela = tk.Toplevel(self.parent)
-        self.janela.title("Identificação do Processo - Motor CC")
-        self.janela.geometry("1000x700")
-
-        principal = ttk.Frame(self.janela, padding=12)
+        principal = ttk.Frame(parent, padding=12)
         principal.pack(fill="both", expand=True)
 
         ttk.Label(
             principal,
             text="Identificação do Processo",
             font=("Arial", 15, "bold")
-        ).pack(pady=5)
+        ).pack(pady=(0, 6))
 
-        ttk.Label(
-            principal,
-            text="Métodos de Smith, Sundaresan e ajuste fino"
-        ).pack(pady=4)
+        topo = ttk.Frame(principal)
+        topo.pack(fill="x", pady=4)
+        ttk.Button(
+            topo,
+            text="Escolher arquivo",
+            command=self.escolher_arquivo
+        ).pack(side="left")
+        self.status_var = tk.StringVar(value="⚠ Selecione um dataset (.mat) para liberar a aba de controle.")
+        ttk.Label(topo, textvariable=self.status_var).pack(side="left", padx=10)
 
-        self.resultado = tk.Text(
-            principal,
-            height=10,
-            width=110,
-            wrap="word"
+        corpo = ttk.Frame(principal)
+        corpo.pack(fill="both", expand=True, pady=6)
+
+        lateral = ttk.Frame(corpo, padding=(10, 0))
+        lateral.pack(side="right", fill="y")
+
+        ttk.Label(lateral, text="Identificação:").pack(anchor="w")
+        self.metodo_var = tk.StringVar()
+        self.lista_metodos = ttk.Combobox(
+            lateral, textvariable=self.metodo_var, state="disabled", width=16
         )
-        self.resultado.pack(fill="x", pady=6)
+        self.lista_metodos.pack(anchor="w", pady=(2, 10))
+        self.lista_metodos.bind("<<ComboboxSelected>>", lambda evento: self.selecionar())
 
-        self.figura = Figure(figsize=(9, 4.5), dpi=100)
+        self.campos = {}
+        for chave, rotulo in (("k", "k :"), ("tau", "τ (s) :"), ("theta", "θ (s) :"), ("eqm", "EQM :")):
+            linha = ttk.Frame(lateral)
+            linha.pack(fill="x", pady=3)
+            ttk.Label(linha, text=rotulo, width=8).pack(side="left")
+            variavel = tk.StringVar(value="-")
+            ttk.Entry(linha, textvariable=variavel, width=12, state="readonly").pack(side="left")
+            self.campos[chave] = variavel
+
+        self.botao_exportar = ttk.Button(
+            lateral,
+            text="Exportar",
+            command=self.exportar,
+            state="disabled"
+        )
+        self.botao_exportar.pack(fill="x", pady=(14, 0))
+
+        self.figura = Figure(figsize=(7.5, 4.5), dpi=100)
         self.eixo = self.figura.add_subplot(111)
-        self.canvas = FigureCanvasTkAgg(
-            self.figura,
-            master=principal
+        self.eixo.set_title("Dados de Identificação do Sistema")
+        self.eixo.grid(True)
+        self.canvas = FigureCanvasTkAgg(self.figura, master=corpo)
+        self.canvas.get_tk_widget().pack(side="left", fill="both", expand=True)
+
+    def escolher_arquivo(self):
+        caminho = filedialog.askopenfilename(
+            title="Escolher dataset",
+            initialdir=PASTA_DATASET,
+            filetypes=[("Arquivo MATLAB", "*.mat"), ("Todos os arquivos", "*.*")],
         )
-        self.canvas.get_tk_widget().pack(
-            fill="both",
-            expand=True
-        )
+        if caminho:
+            self.carregar(caminho)
 
-        botoes = ttk.Frame(principal)
-        botoes.pack(pady=6)
-
-        ttk.Button(
-            botoes,
-            text="Executar identificação",
-            command=self.executar
-        ).pack(side="left", padx=5)
-
-        ttk.Button(
-            botoes,
-            text="Fechar",
-            command=self.janela.destroy
-        ).pack(side="left", padx=5)
-
-        self.executar()
-
-    def executar(self):
+    def carregar(self, caminho):
+        self._ocupado(True)
         try:
-            if not CAMINHO_DATASET.exists():
-                raise FileNotFoundError(
-                    f"Dataset não encontrado:\n{CAMINHO_DATASET}"
-                )
+            dataset = carregar_dataset(caminho)
+            smith = identificar(dataset.tempo, dataset.entrada, dataset.saida, "smith")
+            sundaresan = identificar(dataset.tempo, dataset.entrada, dataset.saida, "sundaresan")
+            melhor = min((smith, sundaresan), key=lambda modelo: modelo.eqm)
+            fino = ajuste_fino(dataset.tempo, dataset.entrada, dataset.saida, melhor)
+        except ValueError as erro:
+            self.status_var.set(f"✖ Dataset inválido: {erro}")
+            messagebox.showerror("Dataset inválido", str(erro))
+            return
+        finally:
+            self._ocupado(False)
 
-            dados = loadmat(str(CAMINHO_DATASET))
+        self.dataset = dataset
+        self.modelos = {"Smith": smith, "Sundaresan": sundaresan, "Ajuste fino": fino}
+        menor_eqm = min(self.modelos, key=lambda nome: self.modelos[nome].eqm)
 
-            tempo = dados["t"].ravel()
-            entrada = dados["Degrau"].ravel()
-            saida = dados["Saida"].ravel()
+        self.lista_metodos.config(values=list(self.modelos), state="readonly")
+        self.metodo_var.set(menor_eqm)
+        self.botao_exportar.config(state="normal")
+        self.status_var.set(
+            f"✔ {dataset.nome} válido. Menor EQM: {menor_eqm} "
+            f"({self.modelos[menor_eqm].eqm:.3f} {dataset.unidade})."
+        )
+        self.selecionar()
 
-            smith = identificar(
-                tempo, entrada, saida, "smith"
-            )
-            sundaresan = identificar(
-                tempo, entrada, saida, "sundaresan"
-            )
+    def _ocupado(self, ocupado):
+        self.canvas.get_tk_widget().winfo_toplevel().config(cursor="watch" if ocupado else "")
+        self.canvas.get_tk_widget().update_idletasks()
 
-            melhor = min(
-                (smith, sundaresan),
-                key=lambda modelo: modelo.eqm
-            )
+    def selecionar(self):
+        nome = self.metodo_var.get()
+        modelo = self.modelos[nome]
+        self.campos["k"].set(f"{modelo.k:.4f}")
+        self.campos["tau"].set(f"{modelo.tau:.4f}")
+        self.campos["theta"].set(f"{modelo.theta:.4f}")
+        self.campos["eqm"].set(f"{modelo.eqm:.4f}")
+        self.desenhar(nome)
+        self.ao_selecionar(
+            {"k": modelo.k, "tau": modelo.tau, "theta": modelo.theta}, nome, self.dataset
+        )
 
-            def custo(parametros):
-                k, tau, theta = parametros
-
-                if k <= 0 or tau <= 0 or theta < 0:
-                    return float("inf")
-
-                estimativa = simular_fopdt(
-                    k,
-                    tau,
-                    theta,
-                    tempo,
-                    entrada,
-                    melhor.u0,
-                    melhor.y0
-                )
-                return eqm(estimativa, saida)
-
-            ajuste = minimize(
-                custo,
-                [melhor.k, melhor.tau, melhor.theta],
-                method="Nelder-Mead",
-                bounds=[
-                    (1e-9, None),
-                    (1e-9, None),
-                    (0, None)
-                ]
-            )
-
-            if not ajuste.success and not all(
-                valor == valor for valor in ajuste.x
-            ):
-                raise ValueError(
-                    "Não foi possível calcular o ajuste fino."
-                )
-
-            k_aj, tau_aj, theta_aj = ajuste.x
-
-            resposta_ajustada = simular_fopdt(
-                k_aj,
-                tau_aj,
-                theta_aj,
-                tempo,
-                entrada,
-                melhor.u0,
-                melhor.y0
-            )
-
-            self.resultado.delete("1.0", tk.END)
-
-            self.resultado.insert(
-                tk.END,
-                "RESULTADOS DA IDENTIFICAÇÃO\n\n"
-                f"Smith: K={smith.k:.4f}, "
-                f"tau={smith.tau:.4f} s, "
-                f"theta={smith.theta:.4f} s, "
-                f"EQM={smith.eqm:.4f}\n"
-                f"Sundaresan: K={sundaresan.k:.4f}, "
-                f"tau={sundaresan.tau:.4f} s, "
-                f"theta={sundaresan.theta:.4f} s, "
-                f"EQM={sundaresan.eqm:.4f}\n\n"
-                f"Melhor método inicial: {melhor.metodo}\n"
-                f"Ajuste fino: K={k_aj:.4f}, "
-                f"tau={tau_aj:.4f} s, "
-                f"theta={theta_aj:.4f} s, "
-                f"EQM={ajuste.fun:.4f}"
-            )
-
-            self.eixo.clear()
+    def desenhar(self, selecionado):
+        dataset = self.dataset
+        self.eixo.clear()
+        self.eixo.plot(dataset.tempo, dataset.saida, color="0.55", lw=1, label="Resposta real")
+        for nome, modelo in self.modelos.items():
             self.eixo.plot(
-                tempo, saida, "k",
-                label="Resposta real"
+                dataset.tempo, modelo.yest, ESTILOS[nome],
+                lw=2.4 if nome == selecionado else 1.1,
+                alpha=1.0 if nome == selecionado else 0.6,
+                label=f"{nome} (EQM={modelo.eqm:.3f})",
             )
-            self.eixo.plot(
-                tempo, smith.yest, "r--",
-                label=f"Smith (EQM={smith.eqm:.3f})"
-            )
-            self.eixo.plot(
-                tempo, sundaresan.yest, "b-.",
-                label=f"Sundaresan (EQM={sundaresan.eqm:.3f})"
-            )
-            self.eixo.plot(
-                tempo, resposta_ajustada, "g",
-                label=f"Ajuste fino (EQM={ajuste.fun:.3f})"
-            )
+        self.eixo.set_xlabel("Tempo (s)")
+        self.eixo.set_ylabel(f"Velocidade ({dataset.unidade})" if dataset.unidade else "Amplitude")
+        self.eixo.set_title(dataset.descricao or "Dados de Identificação do Sistema", fontsize=10)
+        self.eixo.grid(True)
+        self.eixo.legend(loc="lower right")
+        self.figura.tight_layout()
+        self.canvas.draw()
 
-            self.eixo.set_xlabel("Tempo (s)")
-            self.eixo.set_ylabel("Velocidade (RPM)")
-            self.eixo.set_title("Comparação dos modelos identificados")
-            self.eixo.grid(True)
-            self.eixo.legend()
-            self.figura.tight_layout()
-            self.canvas.draw()
-
-            modelo = {
-                "metodo": melhor.metodo,
-                "k": float(melhor.k),
-                "tau": float(melhor.tau),
-                "theta": float(melhor.theta),
-                "eqm": float(melhor.eqm),
-                "fator_incontrolabilidade": float(melhor.fator),
-                "ajustado": {
-                    "k": float(k_aj),
-                    "tau": float(tau_aj),
-                    "theta": float(theta_aj),
-                    "eqm": float(ajuste.fun)
-                }
-            }
-
-            with open(
-                CAMINHO_MODELO,
-                "w",
-                encoding="utf-8"
-            ) as arquivo:
-                json.dump(
-                    modelo,
-                    arquivo,
-                    indent=2,
-                    ensure_ascii=False
-                )
-
-        except Exception as erro:
-            messagebox.showerror(
-                "Erro na identificação",
-                str(erro),
-                parent=self.janela
-            )
+    def exportar(self):
+        caminho = filedialog.asksaveasfilename(
+            title="Exportar gráfico da identificação",
+            defaultextension=".png",
+            initialfile="identificacao.png",
+            filetypes=[("Imagem PNG", "*.png"), ("PDF", "*.pdf"), ("SVG", "*.svg")],
+        )
+        if not caminho:
+            return
+        try:
+            self.figura.savefig(caminho, dpi=300)
+            messagebox.showinfo("Exportação concluída", f"Gráfico salvo em:\n{caminho}")
+        except OSError as erro:
+            messagebox.showerror("Erro ao exportar", str(erro))

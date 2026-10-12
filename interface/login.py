@@ -15,9 +15,15 @@ load_dotenv(RAIZ_PROJETO / ".env")
 USUARIO_CORRETO = os.getenv("LOGIN_USERNAME")
 SENHA = os.getenv("LOGIN_PASSWORD")
 if not USUARIO_CORRETO or not SENHA:
-    raise RuntimeError(
-        "Configure LOGIN_USERNAME e LOGIN_PASSWORD no arquivo .env."
+    raiz = tk.Tk()
+    raiz.withdraw()
+    messagebox.showerror(
+        "Configuração ausente",
+        "Configure LOGIN_USERNAME e LOGIN_PASSWORD no arquivo .env "
+        "(copie o .env.example; veja o README)."
     )
+    raiz.destroy()
+    raise SystemExit(1)
 
 SENHA_HASH = hashlib.sha256(SENHA.encode("utf-8")).hexdigest()
 

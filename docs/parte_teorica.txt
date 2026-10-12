@@ -18,7 +18,17 @@ Entre as possíveis perturbações estão alterações na carga mecânica aplica
 
 Faixas de operação
 
-As faixas de operação devem respeitar os limites elétricos e mecânicos do motor, do circuito de acionamento e do sensor utilizado na medição da velocidade.
+Variável controlada: 0 a aproximadamente 2250 RPM. O ponto de operação do ensaio é 1800 RPM.
+Variável manipulada: duty cycle do PWM de 0 a 100 %. O ensaio aplicou um degrau de 0 para 80 %.
+
+As faixas vêm do próprio ensaio. Com o ganho identificado, k ≈ 22,5 RPM/%, o acionamento máximo (100 %) levaria o motor a cerca de 2250 RPM. A 1800 RPM, o PWM já está em 80 %, então sobram 20 % de margem para o controlador compensar perturbações.
+
+Faixas típicas das perturbações (efeito estimado sem controle, a 1800 RPM):
+- Carga no eixo: 0 a 20 % do acionamento equivalente, o que derrubaria a velocidade em até 450 RPM.
+- Tensão de alimentação: ±10 % da nominal, cerca de ±180 RPM.
+- Aquecimento do motor: a resistência da armadura aumenta cerca de 0,4 %/°C; de 25 °C a 75 °C, cerca de +20 %.
+- Atrito variável: poucos % do torque nominal, desvios de algumas dezenas de RPM.
+- Ruído de medição: desvio padrão de cerca de 10 RPM no ensaio.
 
 -------
 
@@ -35,4 +45,4 @@ O atuador pode ser representado por um circuito de acionamento, como um driver d
 
 Limites de operação
 
-O sensor deve suportar a faixa de velocidades esperada, enquanto o circuito de acionamento deve respeitar os limites de tensão, corrente e potência do motor. Como não foram especificados os componentes físicos utilizados, os valores exatos desses limites não podem ser determinados apenas com as informações disponíveis no projeto.
+O sensor deve suportar a faixa de velocidades esperada (até cerca de 2250 RPM), enquanto o circuito de acionamento deve respeitar os limites de tensão, corrente e potência do motor. Como os componentes físicos não foram especificados, as faixas acima foram estimadas a partir do ensaio e de valores típicos para motores CC pequenos.

@@ -1,7 +1,16 @@
 Interface de controle PID
 
-A interface permite alterar os parâmetros Kp, Ti e Td do controlador PID, além do setpoint de velocidade do motor CC. Também disponibiliza o carregamento dos parâmetros calculados pelos métodos de Ziegler-Nichols em malha aberta e Cohen-Coon.
+A interface foi desenvolvida em Tkinter e é aberta pela tela de login (python interface/login.py). Ela tem duas abas, seguindo as Figuras 11 e 12 do enunciado.
 
-Após a simulação, são apresentados o gráfico da resposta do motor, o tempo de subida, o tempo de acomodação, o overshoot, o erro em regime e a condição de estabilidade do sistema.
+Aba Identificação
+O usuário escolhe um arquivo .mat, que é validado (variáveis t, Degrau e Saida, mesmo tamanho, tempo crescente e degrau na entrada). A aba identifica o processo por Smith e Sundaresan, faz o ajuste fino e mostra o modelo de menor EQM. Uma lista suspensa permite escolher qualquer um dos três. O gráfico sobrepõe a resposta real e os modelos, e o botão Exportar salva esse gráfico. A aba Controle PID só é liberada depois que um dataset válido é selecionado.
 
-A interface utiliza o modelo identificado e ajustado a partir dos dados do ensaio do motor CC. Os resultados dependem dos parâmetros informados e das características desse modelo.
+Aba Controle PID
+- Modo Método: o usuário escolhe Ziegler-Nichols ou Cohen-Coon. Kp, Ti e Td são calculados e não podem ser editados. O campo lambda fica sempre bloqueado, porque só o IMC o usa e o Grupo 2 não usa IMC.
+- Modo Manual: Kp, Ti e Td podem ser editados e têm botões para limpar. A seleção de método e o lambda ficam bloqueados. O botão Sintonizar verifica a estabilidade antes de simular.
+- O SetPoint é editável, com valor inicial igual ao do dataset.
+- Após a simulação, são apresentados o gráfico da resposta, o tempo de subida, o tempo de acomodação, o overshoot (marcados no gráfico), o erro em regime e a condição de estabilidade.
+- Exportar salva o gráfico como imagem e Exportar CSV salva os parâmetros e as métricas.
+- Extra: a seção Perturbação de carga aplica um degrau de carga e mostra a queda de velocidade e o tempo de recuperação.
+
+Os resultados dependem dos parâmetros informados e do modelo escolhido na aba Identificação.
