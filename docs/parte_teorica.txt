@@ -19,3 +19,20 @@ Entre as possíveis perturbações estão alterações na carga mecânica aplica
 Faixas de operação
 
 As faixas de operação devem respeitar os limites elétricos e mecânicos do motor, do circuito de acionamento e do sensor utilizado na medição da velocidade.
+
+-------
+
+Instrumentação: Sensores e Atuadores
+
+Sensor de velocidade
+
+Para medir a velocidade de rotação do motor CC, pode ser utilizado um encoder ou um sensor de efeito Hall. Esses dispositivos permitem obter informações sobre a rotação do eixo, que podem ser convertidas em RPM. A velocidade medida é utilizada como realimentação do sistema, permitindo que o controlador PID compare o valor atual com o Setpoint e ajuste o acionamento para reduzir a diferença entre eles.
+
+
+Atuador
+
+O atuador pode ser representado por um circuito de acionamento, como um driver de potência, responsável por fornecer energia ao motor conforme o sinal de controle. O PID ajusta esse sinal para aproximar a velocidade do motor ao valor de referência. Em uma implementação física, o driver deve ser compatível com os requisitos elétricos do motor.
+
+Limites de operação
+
+O sensor deve suportar a faixa de velocidades esperada, enquanto o circuito de acionamento deve respeitar os limites de tensão, corrente e potência do motor. Como não foram especificados os componentes físicos utilizados, os valores exatos desses limites não podem ser determinados apenas com as informações disponíveis no projeto.
