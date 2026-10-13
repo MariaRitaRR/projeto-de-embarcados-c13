@@ -16,6 +16,7 @@ A aplicação identifica o modelo de um motor CC a partir de um ensaio de curva 
 |---|---|
 | `dataset/Motor_G2.mat` | Ensaio da curva de reação do Grupo 2 (`t`, `Degrau`, `Saida` e metadados) |
 | `identificação/identificacao.py` | Leitura e validação do dataset, métodos de Smith e Sundaresan, EQM e ajuste fino |
+| `identificação/curva_reacao.py` | Item 1: gráfico do ensaio da curva de reação |
 | `identificação/main_identificacao.py` | Itens 1 a 3: identifica, compara, faz o ajuste fino e salva `modelo_identificado.json` |
 | `identificação/sintonia_ziegler_nichols.py`, `sintonia_cohen_coon.py` | Regras de sintonia das Tabelas 1 e 5 do enunciado |
 | `identificação/comparar_malhas.py` | Item 4: malha aberta × malha fechada |
@@ -33,6 +34,7 @@ Instale as dependências e rode tudo **a partir da pasta raiz** do projeto:
 
 ```bash
 pip install -r requirements.txt
+python "identificação/curva_reacao.py"        # item 1 (gráfico do ensaio)
 python "identificação/main_identificacao.py"   # itens 1 a 3 (gera o JSON e as figuras de identificação)
 python "identificação/comparar_malhas.py"      # item 4
 python "identificação/comparar_sintonias.py"   # itens 5 e 6
@@ -41,6 +43,29 @@ python interface/login.py                      # item 7 (precisa do .env, veja a
 ```
 
 Os scripts também funcionam como módulo, por exemplo `python -m identificação.main_identificacao`.
+
+#### Configurar usuário e senha da interface
+
+Antes de abrir a interface, crie o arquivo `.env` na pasta raiz do projeto a partir do modelo:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Edite o `.env` e defina as credenciais que serão usadas na tela de autenticação:
+
+```dotenv
+LOGIN_USERNAME=seu_usuario
+LOGIN_PASSWORD=sua_senha
+```
+
+Inicie a interface pela tela de login, também a partir da pasta raiz:
+
+```bash
+python interface/login.py
+```
+
+O arquivo `.env` é local e está ignorado pelo Git; não o envie ao repositório. O `.env.example` é apenas um modelo, então cada pessoa deve criar seu próprio `.env`. Se as variáveis `LOGIN_USERNAME` e `LOGIN_PASSWORD` não estiverem definidas, a interface informa que é necessário configurar o arquivo.
 
 ## Parte teórica
 
@@ -113,11 +138,15 @@ As faixas vêm do próprio ensaio. O dataset informa a unidade da saída (RPM) e
 
 O ensaio do Grupo 2 está em `dataset/Motor_G2.mat`. São 1501 amostras em 150 s ($\Delta t$ = 0,1 s). Em t = 10 s, a entrada (`Degrau`, *duty cycle* do PWM em %) passa de 0 para 80 %, e a saída (`Saida`, em RPM) sobe de ≈ 0 até ≈ 1800 RPM. O arquivo também traz metadados: a unidade da saída (`unidade_saida = "RPM"`), uma descrição do ensaio e a velocidade alvo (`rpm_final = 1800`), que a interface usa como SetPoint inicial.
 
+![Ensaio da curva de reação](figuras/curva_reacao.png)
+
+*Figura 2: Ensaio da curva de reação do Grupo 2 (`python "identificação/curva_reacao.py"`). A velocidade só começa a subir cerca de 2,5 s depois do degrau, que é o atraso θ, e chega a ≈ 1800 RPM sem sobressinal.*
+
 ### 2. Identificação: método e modelo
 
 **Modelo.** A curva de reação é monotônica, sem sobressinal, com formato em "S" e um atraso antes de reagir. É a resposta típica de um sistema de **primeira ordem com atraso (FOPDT)**, coerente com a física do motor: o polo elétrico é muito mais rápido que o mecânico (seção 1). Por isso o modelo adotado é $G(s) = \frac{k}{\tau s + 1}e^{-\theta s}$.
 
-**Parâmetros pelos dois métodos** (`python "identificação/main_identificacao.py"`):
+**Parâmetros pelos dois métodos** (`python "identificação/main_identificacao.py"`). O método de Smith (SMITH, 1972) usa os instantes em que a resposta normalizada passa por 28,3 % e 63,2 % do valor final; o de Sundaresan (SUNDARESAN; KRISHNASWAMY, 1978), por 35,3 % e 85,3 %:
 
 | Método | k (RPM/%) | τ (s) | θ (s) | θ/τ | EQM (RPM) |
 |---|---|---|---|---|---|
@@ -159,7 +188,7 @@ Veja o [exemplo do item 4](#exemplo-item-4-malha-aberta--malha-fechada) e o text
 
 ### 5. Sintonia do PID (Tabela 8)
 
-Os parâmetros foram calculados com o modelo do ajuste fino (k = 22,50, τ = 19,97 s, θ = 2,54 s, θ/τ = 0,127) e simulados com SetPoint de 1800 RPM (`python "identificação/comparar_sintonias.py"`):
+Os parâmetros seguem as regras de Ziegler-Nichols em malha aberta (ZIEGLER; NICHOLS, 1993) e de Cohen-Coon (COHEN; COON, 1953), nas Tabelas 1 e 5 do enunciado. Eles foram calculados com o modelo do ajuste fino (k = 22,50, τ = 19,97 s, θ = 2,54 s, θ/τ = 0,127) e simulados com SetPoint de 1800 RPM (`python "identificação/comparar_sintonias.py"`):
 
 | Técnica | Método | Kp (%/RPM) | Ti (s) | Td (s) |
 |---|---|---|---|---|
@@ -213,6 +242,23 @@ A interface foi feita em **Tkinter** e segue as Figuras 11 e 12 do enunciado. El
 - **SetPoint** editável, com valor inicial igual ao do dataset. No modo Método, Enter no campo refaz a simulação.
 - **tr, ts e mp** aparecem nos campos e marcados no gráfico. A opção "marcar" de cada um liga ou desliga o ponto correspondente. As unidades vêm dos metadados do dataset.
 - **Exportar** salva o gráfico como imagem (PNG, PDF ou SVG). **Exportar CSV** salva os parâmetros e as métricas.
+
+#### Exportar métricas (CSV)
+
+Depois de executar uma simulação estável, use o botão **Exportar CSV** para escolher onde salvar os resultados. O arquivo contém uma linha com os parâmetros do controlador e as métricas calculadas:
+
+| Coluna | Grandeza |
+|---|---|
+| `kp (%/RPM)` | Ganho proporcional |
+| `ti (s)` | Tempo integral |
+| `td (s)` | Tempo derivativo |
+| `tr (s)` | Tempo de subida |
+| `ts (s)` | Tempo de acomodação |
+| `mp (%)` | Overshoot |
+
+A unidade do Kp segue a unidade de saída do dataset.
+
+O CSV usa ponto e vírgula (`;`) como separador de colunas e vírgula como separador decimal, para facilitar a abertura no Excel em português.
 
 ### Extras
 
@@ -272,46 +318,6 @@ Instale as dependências e rode os scripts **a partir da pasta raiz** do projeto
 pip install -r requirements.txt
 python controle/malha_fechada.py   # exemplo: imprime as métricas e salva figuras/simulacao_pid_teste.png
 ```
-
-### Configurar usuário e senha da interface
-
-Antes de abrir a interface, crie o arquivo `.env` na pasta raiz do projeto a partir do modelo:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Edite o `.env` e defina as credenciais que serão usadas na tela de autenticação:
-
-```dotenv
-LOGIN_USERNAME=seu_usuario
-LOGIN_PASSWORD=sua_senha
-```
-
-Inicie a interface pela tela de login, também a partir da pasta raiz:
-
-```bash
-python interface/login.py
-```
-
-O arquivo `.env` é local e está ignorado pelo Git; não o envie ao repositório. O `.env.example` é apenas um modelo, então cada pessoa deve criar seu próprio `.env`. Se as variáveis `LOGIN_USERNAME` e `LOGIN_PASSWORD` não estiverem definidas, a interface informa que é necessário configurar o arquivo.
-
-### Exportar métricas da interface
-
-Depois de executar uma simulação estável, use o botão **Exportar CSV** para escolher onde salvar os resultados. O arquivo contém uma linha com os parâmetros do controlador e as métricas calculadas:
-
-| Coluna | Grandeza |
-|---|---|
-| `kp (%/RPM)` | Ganho proporcional |
-| `ti (s)` | Tempo integral |
-| `td (s)` | Tempo derivativo |
-| `tr (s)` | Tempo de subida |
-| `ts (s)` | Tempo de acomodação |
-| `mp (%)` | Overshoot |
-
-A unidade do Kp segue a unidade de saída do dataset.
-
-O CSV usa ponto e vírgula (`;`) como separador de colunas e vírgula como separador decimal, para facilitar a abertura no Excel em português.
 
 Em outro script, importe as funções assim:
 
@@ -403,6 +409,14 @@ else:
 
 ## Referências
 
+COHEN, G. H.; COON, G. A. Theoretical consideration of retarded control. **Journal of Fluids Engineering**, v. 75, n. 5, p. 827-834, jul. 1953.
+
 FUENTES, Rodrigo Cardozo. **Apostila de Automação Industrial**: capítulo 5 – Controle de Motores de Corrente Contínua. Santa Maria: Colégio Técnico Industrial de Santa Maria, Universidade Federal de Santa Maria, 2005.
 
 OGATA, Katsuhiko. **Engenharia de Controle Moderno**. 5. ed. São Paulo: Pearson Prentice Hall, 2010.
+
+SMITH, Cecil L. **Process Control and Instrumentation Technology**. [S. l.]: Addison-Wesley, 1972.
+
+SUNDARESAN, K. R.; KRISHNASWAMY, P. R. Estimation of time delay, time constant and transfer function model from process step response. **Industrial & Engineering Chemistry Process Design and Development**, v. 17, n. 2, p. 236-241, 1978.
+
+ZIEGLER, J. G.; NICHOLS, N. B. Optimum settings for automatic controllers. **Journal of Dynamic Systems, Measurement, and Control**, v. 115, n. 2B, p. 220-222, jun. 1993.
