@@ -27,6 +27,7 @@ from identificação.sintonia_ziegler_nichols import ziegler_nichols
 
 # Métodos do Grupo 2 (Técnicas 1 e 5). Nenhum é IMC, então λ fica sempre bloqueado.
 METODOS = {"Ziegler-Nichols": ziegler_nichols, "Cohen-Coon": cohen_coon}
+INTEGRANTES = ["Maria Rita", "Julia", "Raissa"]  # mostrados na aba Início
 
 modelo = None  # {"k", "tau", "theta"} escolhido na aba Identificação
 unidade = "RPM"
@@ -308,11 +309,47 @@ janela.geometry("1180x800")
 abas = ttk.Notebook(janela)
 abas.pack(fill="both", expand=True)
 
+aba_inicio = ttk.Frame(abas, padding=30)
 aba_identificacao = ttk.Frame(abas)
 aba_controle = ttk.Frame(abas)
 
+abas.add(aba_inicio, text="Início")
 abas.add(aba_identificacao, text="Identificação")
 abas.add(aba_controle, text="Controle PID", state="disabled")  # liberada ao escolher o dataset
+
+# %% Aba Início: apresentação do projeto e passo a passo de uso
+ttk.Label(
+    aba_inicio, text="Projeto Prático C13 - Sistemas Embarcados", font=("Arial", 18, "bold")
+).pack(pady=(10, 2))
+ttk.Label(
+    aba_inicio, text="Identificação de Processos & Sintonia de Controladores PID", font=("Arial", 12)
+).pack()
+
+grupo = ttk.LabelFrame(aba_inicio, text="Grupo 2", padding=12)
+grupo.pack(pady=(25, 10))
+for linha, (rotulo, valor) in enumerate([
+    ("Planta:", "Motor CC (controle de velocidade)"),
+    ("Métodos de sintonia:", "Ziegler-Nichols Malha Aberta e Cohen-Coon"),
+    ("Critério de desempenho:", "Menor tempo de resposta"),
+    ("Integrantes:", ", ".join(INTEGRANTES)),
+]):
+    ttk.Label(grupo, text=rotulo, font=("Arial", 10, "bold")).grid(row=linha, column=0, sticky="w", padx=(0, 10), pady=2)
+    ttk.Label(grupo, text=valor).grid(row=linha, column=1, sticky="w", pady=2)
+
+passos = ttk.LabelFrame(aba_inicio, text="Como usar", padding=12)
+passos.pack(pady=10)
+for numero, texto in enumerate([
+    "Na aba Identificação, clique em Escolher arquivo e selecione o dataset (.mat). "
+    "O modelo de menor EQM é escolhido automaticamente.",
+    "A aba Controle PID é liberada. No modo Método, escolha Ziegler-Nichols ou Cohen-Coon; "
+    "no modo Manual, digite Kp, Ti e Td e clique em Sintonizar.",
+    "Confira tr, ts e mp no gráfico e use Exportar para salvar o gráfico ou Exportar CSV para as métricas.",
+], start=1):
+    ttk.Label(passos, text=f"{numero}. {texto}", wraplength=700, justify="left").pack(anchor="w", pady=3)
+
+ttk.Button(
+    aba_inicio, text="Começar: escolher o dataset", command=lambda: abas.select(aba_identificacao)
+).pack(pady=15)
 
 principal = ttk.Frame(aba_controle, padding=12)
 principal.pack(fill="both", expand=True)

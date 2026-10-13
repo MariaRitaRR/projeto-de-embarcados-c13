@@ -23,7 +23,7 @@ A aplicação identifica o modelo de um motor CC a partir de um ensaio de curva 
 | `identificação/comparar_sintonias.py` | Itens 5 e 6: ZN × Cohen-Coon |
 | `controle/malha_fechada.py` | Núcleo de simulação (planta FOPDT + Padé, PID, métricas, degrau de carga) |
 | `controle/degrau_carga.py` | Extra: rejeição de um degrau de carga |
-| `interface/login.py`, `interface/interface_pid.py` | Item 7: tela de login e interface com as abas Identificação e Controle PID |
+| `interface/login.py`, `interface/interface_pid.py` | Item 7: tela de login e interface com as abas Início, Identificação e Controle PID |
 | `identificação/interface_identificacao.py` | Aba Identificação da interface |
 | `docs/` | Textos de apoio de cada item |
 | `figuras/` | Todos os gráficos, salvos em 300 dpi |
@@ -228,7 +228,9 @@ A vantagem do ZN é pequena (≈ 0,5 s, cerca de 2 %), mas aparece em todas as o
 
 ### 7. Interface (IHM)
 
-A interface foi feita em **Tkinter** e segue as Figuras 11 e 12 do enunciado. Ela é aberta pela tela de login (`python interface/login.py`) e tem duas abas.
+A interface foi feita em **Tkinter** e segue as Figuras 11 e 12 do enunciado. Ela é aberta pela tela de login (`python interface/login.py`) e tem três abas.
+
+**Aba Início:** apresenta o projeto, o grupo (planta, métodos, critério e integrantes) e um passo a passo de uso. O botão **Começar** leva direto à aba Identificação.
 
 **Aba Identificação** (Figura 11a):
 - **Escolher arquivo** abre o seletor de `.mat`. O arquivo é validado: precisa ter as variáveis `t`, `Degrau` e `Saida` do mesmo tamanho, com valores numéricos, tempo crescente e um degrau na entrada. Se for inválido, aparece o motivo.

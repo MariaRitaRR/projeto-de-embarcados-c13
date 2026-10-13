@@ -1,6 +1,9 @@
 Interface de controle PID
 
-A interface foi desenvolvida em Tkinter e é aberta pela tela de login (python interface/login.py). Ela tem duas abas, seguindo as Figuras 11 e 12 do enunciado.
+A interface foi desenvolvida em Tkinter e é aberta pela tela de login (python interface/login.py). Ela tem três abas, seguindo as Figuras 11 e 12 do enunciado.
+
+Aba Início
+Apresenta o projeto, o grupo (planta, métodos de sintonia, critério de desempenho e integrantes) e um passo a passo de uso. O botão Começar leva direto à aba Identificação.
 
 Aba Identificação
 O usuário escolhe um arquivo .mat, que é validado (variáveis t, Degrau e Saida, mesmo tamanho, tempo crescente e degrau na entrada). A aba identifica o processo por Smith e Sundaresan, faz o ajuste fino e mostra o modelo de menor EQM. Uma lista suspensa permite escolher qualquer um dos três. O gráfico sobrepõe a resposta real e os modelos, e o botão Exportar salva esse gráfico. A aba Controle PID só é liberada depois que um dataset válido é selecionado.
