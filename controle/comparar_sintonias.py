@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ))  # permite rodar o arquivo direto, além de python -m
 
-from identificação.sintonia_cohen_coon import cohen_coon
-from identificação.sintonia_ziegler_nichols import ziegler_nichols
+from controle.sintonia_cohen_coon import cohen_coon
+from controle.sintonia_ziegler_nichols import ziegler_nichols
 from controle.malha_fechada import (
     carregar_modelo,
     simular_malha_fechada,

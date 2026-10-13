@@ -6,7 +6,7 @@ CONDIÇÕES DA SIMULAÇÃO
 Modelo: ajuste fino, K = 22,50 RPM/%, tau = 19,97 s, theta = 2,54 s (theta/tau = 0,127)
 Setpoint: 1800 RPM
 Controlador: PID ideal da eq. (8), atraso por Padé de ordem 3
-Script: python "identificação/comparar_sintonias.py"
+Script: python controle/comparar_sintonias.py
 
 PARÂMETROS (TABELA 8)
 ---------------------

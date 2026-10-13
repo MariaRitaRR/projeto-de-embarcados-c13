@@ -15,15 +15,15 @@ if not globals().get("_LOGIN_AUTHENTICATED", False):
     runpy.run_path(str(Path(__file__).with_name("login.py")), run_name="__main__")
     raise SystemExit
 
-from identificação.interface_identificacao import InterfaceIdentificacao
+from interface.interface_identificacao import InterfaceIdentificacao
 from controle.malha_fechada import (
     CARGA_PADRAO,
     simular_malha_fechada,
     simular_degrau_carga,
     ganho_critico,
 )
-from identificação.sintonia_cohen_coon import cohen_coon
-from identificação.sintonia_ziegler_nichols import ziegler_nichols
+from controle.sintonia_cohen_coon import cohen_coon
+from controle.sintonia_ziegler_nichols import ziegler_nichols
 
 # Métodos do Grupo 2 (Técnicas 1 e 5). Nenhum é IMC, então λ fica sempre bloqueado.
 METODOS = {"Ziegler-Nichols": ziegler_nichols, "Cohen-Coon": cohen_coon}

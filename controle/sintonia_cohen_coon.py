@@ -24,7 +24,7 @@ def cohen_coon(k: float, tau: float, theta: float) -> ParametrosPID:
 
 
 if __name__ == "__main__":
-    with open(Path(__file__).with_name("modelo_identificado.json"), encoding="utf-8") as f:
+    with open(Path(__file__).resolve().parents[1] / "identificação" / "modelo_identificado.json", encoding="utf-8") as f:
         modelo = json.load(f)["ajustado"]
     k, tau, theta = modelo["k"], modelo["tau"], modelo["theta"]
 

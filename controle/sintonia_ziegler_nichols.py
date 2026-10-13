@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # permite rodar o arquivo direto, além de python -m
 
-from identificação.sintonia_cohen_coon import ParametrosPID
+from controle.sintonia_cohen_coon import ParametrosPID
 
 
 def ziegler_nichols(k: float, tau: float, theta: float) -> ParametrosPID:
@@ -19,7 +19,7 @@ def ziegler_nichols(k: float, tau: float, theta: float) -> ParametrosPID:
 
 
 if __name__ == "__main__":
-    with open(Path(__file__).with_name("modelo_identificado.json"), encoding="utf-8") as f:
+    with open(Path(__file__).resolve().parents[1] / "identificação" / "modelo_identificado.json", encoding="utf-8") as f:
         modelo = json.load(f)["ajustado"]
     k, tau, theta = modelo["k"], modelo["tau"], modelo["theta"]
 

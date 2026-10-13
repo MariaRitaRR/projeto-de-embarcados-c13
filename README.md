@@ -18,13 +18,13 @@ A aplicação identifica o modelo de um motor CC a partir de um ensaio de curva 
 | `identificação/identificacao.py` | Leitura e validação do dataset, métodos de Smith e Sundaresan, EQM e ajuste fino |
 | `identificação/curva_reacao.py` | Item 1: gráfico do ensaio da curva de reação |
 | `identificação/main_identificacao.py` | Itens 1 a 3: identifica, compara, faz o ajuste fino e salva `modelo_identificado.json` |
-| `identificação/sintonia_ziegler_nichols.py`, `sintonia_cohen_coon.py` | Regras de sintonia das Tabelas 1 e 5 do enunciado |
-| `identificação/comparar_malhas.py` | Item 4: malha aberta × malha fechada |
-| `identificação/comparar_sintonias.py` | Itens 5 e 6: ZN × Cohen-Coon |
+| `controle/sintonia_ziegler_nichols.py`, `sintonia_cohen_coon.py` | Regras de sintonia das Tabelas 1 e 5 do enunciado |
+| `controle/comparar_malhas.py` | Item 4: malha aberta × malha fechada |
+| `controle/comparar_sintonias.py` | Itens 5 e 6: ZN × Cohen-Coon |
 | `controle/malha_fechada.py` | Núcleo de simulação (planta FOPDT + Padé, PID, métricas, degrau de carga) |
 | `controle/degrau_carga.py` | Extra: rejeição de um degrau de carga |
 | `interface/login.py`, `interface/interface_pid.py` | Item 7: tela de login e interface com as abas Início, Identificação e Controle PID |
-| `identificação/interface_identificacao.py` | Aba Identificação da interface |
+| `interface/interface_identificacao.py` | Aba Identificação da interface |
 | `docs/` | Textos de apoio de cada item |
 | `figuras/` | Todos os gráficos, salvos em 300 dpi |
 
@@ -36,8 +36,8 @@ Instale as dependências e rode tudo **a partir da pasta raiz** do projeto:
 pip install -r requirements.txt
 python "identificação/curva_reacao.py"        # item 1 (gráfico do ensaio)
 python "identificação/main_identificacao.py"   # itens 1 a 3 (gera o JSON e as figuras de identificação)
-python "identificação/comparar_malhas.py"      # item 4
-python "identificação/comparar_sintonias.py"   # itens 5 e 6
+python controle/comparar_malhas.py             # item 4
+python controle/comparar_sintonias.py          # itens 5 e 6
 python controle/degrau_carga.py                # extra: degrau de carga
 python interface/login.py                      # item 7 (precisa do .env, veja abaixo)
 ```
@@ -198,7 +198,7 @@ Veja o [exemplo do item 4](#exemplo-item-4-malha-aberta--malha-fechada) e o text
 
 ### 5. Sintonia do PID (Tabela 8)
 
-Os parâmetros seguem as regras de Ziegler-Nichols em malha aberta (ZIEGLER; NICHOLS, 1993) e de Cohen-Coon (COHEN; COON, 1953), nas Tabelas 1 e 5 do enunciado. Eles foram calculados com o modelo do ajuste fino (k = 22,50, τ = 19,97 s, θ = 2,54 s, θ/τ = 0,127) e simulados com SetPoint de 1800 RPM (`python "identificação/comparar_sintonias.py"`):
+Os parâmetros seguem as regras de Ziegler-Nichols em malha aberta (ZIEGLER; NICHOLS, 1993) e de Cohen-Coon (COHEN; COON, 1953), nas Tabelas 1 e 5 do enunciado. Eles foram calculados com o modelo do ajuste fino (k = 22,50, τ = 19,97 s, θ = 2,54 s, θ/τ = 0,127) e simulados com SetPoint de 1800 RPM (`python controle/comparar_sintonias.py`):
 
 | Técnica | Método | Kp (%/RPM) | Ti (s) | Td (s) |
 |---|---|---|---|---|
@@ -378,7 +378,7 @@ Parâmetros opcionais que todas as funções de simulação aceitam:
 Para gerar uma figura dedicada com as duas respostas e imprimir as métricas no terminal, execute na raiz do projeto:
 
 ```bash
-python "identificação/comparar_malhas.py"
+python controle/comparar_malhas.py
 ```
 
 A figura é salva em `figuras/comparacao_malhas.png`.

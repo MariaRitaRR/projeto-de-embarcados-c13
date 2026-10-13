@@ -15,8 +15,8 @@ from controle.malha_fechada import (
     planta_fopdt,
     simular_degrau_carga,
 )
-from identificação.sintonia_cohen_coon import cohen_coon
-from identificação.sintonia_ziegler_nichols import ziegler_nichols
+from controle.sintonia_cohen_coon import cohen_coon
+from controle.sintonia_ziegler_nichols import ziegler_nichols
 
 T_CARGA = 100.0  # s, depois da acomodação dos PIDs (~23 s) e da malha aberta (~81 s)
 CAMINHO_FIGURA = RAIZ / "figuras" / "degrau_carga.png"
