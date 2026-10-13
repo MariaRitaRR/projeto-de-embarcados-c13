@@ -50,8 +50,11 @@ def main():
     for nome, (_, y, m) in resultados.items():
         print(f"{nome:<18}{m['queda_carga']:>13.1f}{m['tempo_vale']:>13.2f}"
               f"{m['tempo_recuperacao']:>17.2f}{abs(SETPOINT_PADRAO - y[-1]):>18.1f}")
-    print(f"{'Malha aberta':<18}{SETPOINT_PADRAO - y_aberta[-1]:>13.1f}{'-':>13}{'não recupera':>17}"
-          f"{SETPOINT_PADRAO - y_aberta[-1]:>18.1f}")
+    # Malha aberta: queda em regime, k × carga. A simulação termina ~5τ depois da carga, quando a
+    # malha aberta ainda está em ~99% da queda final, então y_aberta[-1] subestimaria a queda.
+    queda_aberta = k * CARGA_PADRAO
+    print(f"{'Malha aberta':<18}{queda_aberta:>13.1f}{'-':>13}{'não recupera':>17}{queda_aberta:>18.1f}")
+    print("(malha aberta: queda em regime, calculada como k × carga)")
 
     figura, (geral, zoom) = plt.subplots(1, 2, figsize=(12, 5), gridspec_kw={"width_ratios": [3, 2]})
     for eixo in (geral, zoom):

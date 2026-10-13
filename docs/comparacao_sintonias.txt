@@ -41,7 +41,7 @@ Justificativa:
 - O ZN em malha aberta foi projetado para uma razão de decaimento de 1/4: aceita sobressinal em troca de uma resposta rápida.
 - O fator (16 tau + 3 theta) / (12 tau) = 1,365 do Cohen-Coon foi pensado para processos com mais atraso. Aqui ele dá um Kp 14 % maior que o do ZN.
 - O Td do Cohen-Coon é 29 % menor, o que amortece menos a resposta. Com mais ganho e menos amortecimento, a resposta oscila mais e demora mais para entrar na faixa de 2 %.
-- O tempo de subida dos dois é parecido (cerca de 1,2 s), porque é limitado principalmente pelo atraso theta.
+- A subida é parecida nos dois. Os dois métodos sobem em cerca de 1,2 s porque os ganhos proporcionais são próximos (0,42 e 0,48). Quem decide o tempo de resposta é o amortecimento depois do primeiro pico, e nisso o ZN é melhor.
 
 A vantagem do ZN é pequena (cerca de 0,5 s, 2 %), mas se mantém com Padé de ordem 3, 5 e 8.
 

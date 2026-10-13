@@ -79,17 +79,23 @@ O motor CC é bastante usado em acionamentos de velocidade variável justamente 
 
 Considerando excitação independente ou ímãs permanentes, o fluxo $\Phi$ é constante, e a velocidade passa a ser controlada pela tensão aplicada na armadura (FUENTES, 2005). Nessa condição, o motor pode ser resumido em duas relações:
 
-$$T = K_t\,I_a \qquad\qquad E = K_e\,\omega$$
+```math
+T = K_t\,I_a \qquad\qquad E = K_e\,\omega
+```
 
 O torque é proporcional à corrente de armadura, e a **força contraeletromotriz** $E$ é proporcional à velocidade. É ela que faz a resposta se estabilizar: conforme o motor acelera, $E$ aumenta, a corrente e o torque diminuem, e a velocidade para de crescer quando o torque equilibra as perdas e a carga.
 
 Incluindo a indutância da armadura $L_a$, a inércia $J$ e o atrito viscoso $b$, o modelo dinâmico do motor é de segunda ordem (OGATA, 2010):
 
-$$\frac{\Omega(s)}{V_a(s)} = \frac{K_t}{(L_a s + R_a)(J s + b) + K_t K_e}$$
+```math
+\frac{\Omega(s)}{V_a(s)} = \frac{K_t}{(L_a s + R_a)(J s + b) + K_t K_e}
+```
 
 Um polo vem da parte elétrica ($L_a/R_a$) e o outro da parte mecânica ($J/b$). Como a constante elétrica é muito mais rápida, a dinâmica mecânica domina, e o motor pode ser aproximado por um modelo de **primeira ordem com atraso**:
 
-$$G(s) = \frac{k}{\tau s + 1}\,e^{-\theta s}$$
+```math
+G(s) = \frac{k}{\tau s + 1}\,e^{-\theta s}
+```
 
 O atraso $\theta$ não aparece nas equações ideais do motor. Em um sistema real, ele vem de fatores como o tempo de amostragem do controlador, a filtragem da medição e o atrito estático. Já a constante de tempo identificada, de cerca de 20 s, é alta para um motor pequeno, o que indica um motor acionando uma carga com bastante inércia.
 
@@ -155,7 +161,9 @@ O ensaio do Grupo 2 está em `dataset/Motor_G2.mat`. São 1501 amostras em 150 s
 
 **Método escolhido: Smith**, por ter o menor EQM. A função de transferência identificada é:
 
-$$G_{Smith}(s) = \frac{22{,}47}{19{,}86\,s + 1}\,e^{-2{,}47\,s}$$
+```math
+G_{\text{Smith}}(s) = \frac{22{,}47}{19{,}86\,s + 1}\,e^{-2{,}47\,s}
+```
 
 **Por que Smith foi melhor, mesmo com ruído.** O enunciado indica Sundaresan para dados com mais ruído. Neste ensaio, porém, o ponto de 85,3 % usado por Sundaresan fica na parte final da curva, que é mais plana. Ali a inclinação da resposta normalizada, $(1-0{,}853)/\tau$, é 2,5 vezes menor do que no ponto de 63,2 % de Smith, $(1-0{,}632)/\tau$. Com uma inclinação menor, o mesmo ruído de ≈ 10 RPM desloca muito mais o instante em que a curva cruza o nível. Nos dados, a curva cruza os 85,3 % em 39,5 s, 1,2 s antes do modelo sem ruído; nos outros três pontos a diferença é de no máximo 0,1 s. Esse cruzamento antecipado reduz τ (18,81 s) e aumenta θ (3,21 s) pela fórmula $\theta = 1{,}3t_1 - 0{,}29t_2$. Na figura, a curva de Sundaresan começa a subir atrasada.
 
@@ -174,7 +182,9 @@ Mesmo assim, foi feito um **ajuste fino**. Partindo dos valores de Smith, os tr�
 | θ (s) | 2,47 | 2,54 | +2,8 % |
 | EQM (RPM) | 10,46 | 10,10 | −3,5 % |
 
-$$G(s) = \frac{22{,}50}{19{,}97\,s + 1}\,e^{-2{,}54\,s}$$
+```math
+G(s) = \frac{22{,}50}{19{,}97\,s + 1}\,e^{-2{,}54\,s}
+```
 
 O reflexo na resposta aparece no início da subida (zoom na figura): com θ um pouco maior, o modelo ajustado começa a subir junto com os dados, enquanto o de Smith se adianta. Como tem o menor EQM, **o modelo do ajuste fino é o adotado em todo o restante do projeto**.
 
@@ -222,7 +232,7 @@ O critério do Grupo 2 é **(a) menor tempo de resposta**, tomado como o **tempo
 - **Foi feito para ser rápido.** O ZN em malha aberta foi projetado para uma razão de decaimento de 1/4: ele aceita sobressinal em troca de uma resposta rápida, o que favorece o tempo de resposta.
 - **Nesta planta, o Cohen-Coon fica agressivo demais.** O fator de correção do Kp do Cohen-Coon, $(16\tau + 3\theta)/(12\tau) = 1{,}365$, foi pensado para processos com mais atraso. Com θ/τ = 0,127, ele dá um Kp 14 % maior que o do ZN.
 - **O Cohen-Coon tem menos amortecimento.** Seu Td é 29 % menor (0,90 s contra 1,27 s), então a ação derivativa amortece menos. Com mais ganho e menos amortecimento, a resposta oscila mais, e cada oscilação extra atrasa a entrada na faixa de 2 %.
-- **O tempo de subida é limitado pelo atraso.** Os dois métodos sobem em ≈ 1,2 s, porque a subida é limitada principalmente pelo atraso θ. Quem decide o tempo de resposta é o amortecimento, e nisso o ZN é melhor.
+- **A subida é parecida nos dois.** Os dois métodos sobem em ≈ 1,2 s porque os ganhos proporcionais são próximos (0,42 e 0,48). Quem decide o tempo de resposta é o amortecimento depois do primeiro pico, e nisso o ZN é melhor.
 
 A vantagem do ZN é pequena (≈ 0,5 s, cerca de 2 %), mas aparece em todas as ordens de Padé testadas (`ordem_pade` = 3, 5 e 8). Na prática, os dois métodos dão tempos de resposta parecidos, e o ZN chega lá com menos sobressinal.
 
@@ -271,13 +281,15 @@ O CSV usa ponto e vírgula (`;`) como separador de colunas e vírgula como separ
 | Sobreposição das curvas real × Smith × Sundaresan (× ajuste fino) | Aba Identificação e `figuras/identificacao.png` |
 | Degrau de carga | Seção "Perturbação de carga" da aba Controle PID e `controle/degrau_carga.py` |
 
-**Degrau de carga.** A carga é modelada como um torque resistente que entra na entrada da planta, $Y = G\,(U - D)$, expresso em % do acionamento. Com uma carga de 15 % aplicada em t = 100 s (`python controle/degrau_carga.py`):
+**Degrau de carga.** A carga é modelada como um torque resistente que entra na entrada da planta, $`Y = G\,(U - D)`$, expresso em % do acionamento. Com uma carga de 15 % aplicada em t = 100 s (`python controle/degrau_carga.py`):
 
 | Resposta | Queda máxima | Volta à faixa de 2 % em | Erro final |
 |---|---|---|---|
 | Ziegler-Nichols | 42 RPM | 6,81 s | 0 |
 | Cohen-Coon | 43 RPM | 6,94 s | 0 |
-| Malha aberta | 335 RPM | não recupera | 335 RPM |
+| Malha aberta | 337,5 RPM | não recupera | 337,5 RPM |
+
+Na malha aberta, a tabela mostra a queda em regime, calculada como k × carga = 22,50 × 15 ≈ 337,5 RPM, porque a simulação termina cerca de 5τ depois da carga, quando a malha aberta ainda está em 99 % da queda final.
 
 Esse é o principal motivo para fechar a malha: sem realimentação, a carga derruba a velocidade de forma permanente. Com o PID, a queda é 8 vezes menor e a ação integral traz a velocidade de volta ao SetPoint.
 
